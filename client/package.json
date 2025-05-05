@@ -1,0 +1,24 @@
+{
+  "name": "triage-visualizer",
+  "version": "0.1.0",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "1.29.1-dev132.0",
+    "@observablehq/runtime": "^6.0.0",
+    "d3": "^7.8.5",
+    "duckdb": "^1.2.1"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "electron": "^36.1.0",
+    "typescript": "^5.4.3",
+    "vite": "^6.3.4",
+    "vite-plugin-electron": "^0.29.0"
+  }
+}
