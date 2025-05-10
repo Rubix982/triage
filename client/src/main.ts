@@ -1,5 +1,5 @@
-import { app, BrowserWindow } from "electron";
-import "./style.css";
+import { app, BrowserWindow } from 'electron'
+import './styles/styles.css'
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -9,17 +9,17 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
     },
-  });
+  })
 
-  win.loadURL(`http://localhost:5173`);
+  win.loadURL(`http://localhost:5173`)
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(createWindow)
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
 
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+})

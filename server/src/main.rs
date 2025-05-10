@@ -14,6 +14,12 @@ mod db;
 mod jira;
 mod queries;
 mod types;
+mod routes;
+mod utils;
+mod db_utils;
+
+// Tests
+mod routes_test;
 
 #[derive(Parser)]
 #[command(name = "triage")]

@@ -1,18 +1,21 @@
-import { defineConfig } from "vite";
-import electron from "vite-plugin-electron";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import electron from 'vite-plugin-electron'
+import electronRenderer from 'vite-plugin-electron-renderer'
 
 export default defineConfig({
-  root: ".",
-  base: "./",
+  root: 'src/',
   plugins: [
+    react(),
     electron([
       {
         // Main process entry
-        entry: "electron/main.ts",
+        entry: 'main.ts',
       },
     ]),
+    electronRenderer(),
   ],
-  build: {
-    outDir: "dist",
+  optimizeDeps: {
+    exclude: ['@mapbox/node-pre-gyp', '@mswjs/interceptors', 'nock'],
   },
-});
+})

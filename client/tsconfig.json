@@ -13,6 +13,5 @@
     "noEmit": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "electron"],
-  "exclude": ["dist"]
+  "include": ["src"]
 }
