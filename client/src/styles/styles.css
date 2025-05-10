@@ -1,0 +1,10 @@
+/* src/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap');
+
+:root {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
