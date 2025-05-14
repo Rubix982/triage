@@ -32,58 +32,58 @@ DuckDB supports a variety of data types for different kinds of data storage and 
 
 ### Numeric Types
 
-| Type | Description | Range/Precision |
-|------|-------------|-----------------|
-| `BOOLEAN` | Logical boolean (true/false) | 1 byte |
-| `TINYINT` | 1-byte signed integer | -128 to 127 |
-| `SMALLINT` | 2-byte signed integer | -32,768 to 32,767 |
-| `INTEGER`, `INT` | 4-byte signed integer | -2,147,483,648 to 2,147,483,647 |
-| `BIGINT` | 8-byte signed integer | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 |
-| `HUGEINT` | 16-byte signed integer | -170,141,183,460,469,231,731,687,303,715,884,105,728 to 170,141,183,460,469,231,731,687,303,715,884,105,727 |
-| `UTINYINT` | 1-byte unsigned integer | 0 to 255 |
-| `USMALLINT` | 2-byte unsigned integer | 0 to 65,535 |
-| `UINTEGER`, `UINT` | 4-byte unsigned integer | 0 to 4,294,967,295 |
-| `UBIGINT` | 8-byte unsigned integer | 0 to 18,446,744,073,709,551,615 |
-| `REAL`, `FLOAT4` | 4-byte floating-point | ~7 digits of precision |
-| `DOUBLE`, `FLOAT8` | 8-byte floating-point | ~15 digits of precision |
-| `DECIMAL`, `NUMERIC` | Fixed-point decimal | Configurable precision and scale |
+| Type                 | Description                  | Range/Precision                                                                                             |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `BOOLEAN`            | Logical boolean (true/false) | 1 byte                                                                                                      |
+| `TINYINT`            | 1-byte signed integer        | -128 to 127                                                                                                 |
+| `SMALLINT`           | 2-byte signed integer        | -32,768 to 32,767                                                                                           |
+| `INTEGER`, `INT`     | 4-byte signed integer        | -2,147,483,648 to 2,147,483,647                                                                             |
+| `BIGINT`             | 8-byte signed integer        | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807                                                     |
+| `HUGEINT`            | 16-byte signed integer       | -170,141,183,460,469,231,731,687,303,715,884,105,728 to 170,141,183,460,469,231,731,687,303,715,884,105,727 |
+| `UTINYINT`           | 1-byte unsigned integer      | 0 to 255                                                                                                    |
+| `USMALLINT`          | 2-byte unsigned integer      | 0 to 65,535                                                                                                 |
+| `UINTEGER`, `UINT`   | 4-byte unsigned integer      | 0 to 4,294,967,295                                                                                          |
+| `UBIGINT`            | 8-byte unsigned integer      | 0 to 18,446,744,073,709,551,615                                                                             |
+| `REAL`, `FLOAT4`     | 4-byte floating-point        | ~7 digits of precision                                                                                      |
+| `DOUBLE`, `FLOAT8`   | 8-byte floating-point        | ~15 digits of precision                                                                                     |
+| `DECIMAL`, `NUMERIC` | Fixed-point decimal          | Configurable precision and scale                                                                            |
 
 ### String Types
 
-| Type | Description |
-|------|-------------|
-| `VARCHAR`, `TEXT`, `CHAR`, `CHARACTER` | Variable-length character string |
+| Type                                    | Description                                          |
+| --------------------------------------- | ---------------------------------------------------- |
+| `VARCHAR`, `TEXT`, `CHAR`, `CHARACTER`  | Variable-length character string                     |
 | `VARCHAR(n)`, `CHAR(n)`, `CHARACTER(n)` | Variable-length character string with maximum length |
-| `BLOB` | Binary data (variable-length) |
-| `BIT` | Bit string type |
-| `BIT VARYING` | Variable-length bit string |
+| `BLOB`                                  | Binary data (variable-length)                        |
+| `BIT`                                   | Bit string type                                      |
+| `BIT VARYING`                           | Variable-length bit string                           |
 
 ### Temporal Types
 
-| Type | Description | Format |
-|------|-------------|--------|
-| `DATE` | Calendar date (year, month, day) | 'YYYY-MM-DD' |
-| `TIME` | Time of day (hour, minute, second, microsecond) | 'HH:MM:SS.mmmmmm' |
-| `TIMESTAMP` | Date and time | 'YYYY-MM-DD HH:MM:SS.mmmmmm' |
-| `TIMESTAMP WITH TIME ZONE` | Date and time with timezone | 'YYYY-MM-DD HH:MM:SS.mmmmmm±TZ' |
-| `INTERVAL` | Time interval | 'Y-M D H:M:S.mmmmmm' |
+| Type                       | Description                                     | Format                          |
+| -------------------------- | ----------------------------------------------- | ------------------------------- |
+| `DATE`                     | Calendar date (year, month, day)                | 'YYYY-MM-DD'                    |
+| `TIME`                     | Time of day (hour, minute, second, microsecond) | 'HH:MM:SS.mmmmmm'               |
+| `TIMESTAMP`                | Date and time                                   | 'YYYY-MM-DD HH:MM:SS.mmmmmm'    |
+| `TIMESTAMP WITH TIME ZONE` | Date and time with timezone                     | 'YYYY-MM-DD HH:MM:SS.mmmmmm±TZ' |
+| `INTERVAL`                 | Time interval                                   | 'Y-M D H:M:S.mmmmmm'            |
 
 ### Collection Types
 
-| Type | Description |
-|------|-------------|
-| `LIST` | Ordered collection of values (array) |
+| Type     | Description                                 |
+| -------- | ------------------------------------------- |
+| `LIST`   | Ordered collection of values (array)        |
 | `STRUCT` | Record with named fields of different types |
-| `MAP` | Key-value pairs |
-| `UNION` | Value of one of multiple possible types |
+| `MAP`    | Key-value pairs                             |
+| `UNION`  | Value of one of multiple possible types     |
 
 ### Other Types
 
-| Type | Description |
-|------|-------------|
-| `UUID` | Universally unique identifier |
+| Type   | Description                     |
+| ------ | ------------------------------- |
+| `UUID` | Universally unique identifier   |
 | `ENUM` | Enumerated set of string values |
-| `JSON` | JSON data |
+| `JSON` | JSON data                       |
 
 ### Type Examples
 
@@ -133,7 +133,7 @@ DuckDB provides functions to convert between data types:
 
 ```sql
 -- Explicit type casting
-SELECT 
+SELECT
     CAST(123 AS VARCHAR),                -- '123'
     CAST('123' AS INTEGER),              -- 123
     CAST('2023-01-15' AS DATE),          -- DATE '2023-01-15'
@@ -141,7 +141,7 @@ SELECT
     CAST(TIMESTAMP '2023-01-15 14:30:00' AS DATE);  -- DATE '2023-01-15'
 
 -- Alternative casting syntax
-SELECT 
+SELECT
     123::VARCHAR,
     '123'::INTEGER,
     '2023-01-15'::DATE;
@@ -156,7 +156,7 @@ SELECT TRY_CAST('not a number' AS INTEGER);  -- NULL
 
 ```sql
 -- Basic arithmetic
-SELECT 
+SELECT
     ABS(-42),              -- 42
     CEIL(42.3),            -- 43
     FLOOR(42.7),           -- 42
@@ -172,7 +172,7 @@ SELECT
     LEAST(1, 5, 3);        -- 1
 
 -- Trigonometric functions
-SELECT 
+SELECT
     PI(),                  -- 3.141592...
     DEGREES(1.0),          -- 57.29577...
     RADIANS(180.0),        -- 3.141592...
@@ -184,7 +184,7 @@ SELECT
     ATAN(1.0);             -- 0.785398... (radians)
 
 -- Logarithmic functions
-SELECT 
+SELECT
     LN(2.718281828),       -- 1.0
     LOG(10),               -- 1.0 (base 10)
     LOG(2, 8),             -- 3.0 (base 2)
@@ -192,7 +192,7 @@ SELECT
     LOG2(8);               -- 3.0
 
 -- Statistical functions
-SELECT 
+SELECT
     RANDOM(),              -- Random value between 0 and 1
     SETSEED(0.5),          -- Set random seed
     RANDOM_UUID();         -- Generate a random UUID
@@ -202,7 +202,7 @@ SELECT
 
 ```sql
 -- String manipulation
-SELECT 
+SELECT
     LOWER('HELLO'),                         -- 'hello'
     UPPER('hello'),                         -- 'HELLO'
     INITCAP('hello world'),                 -- 'Hello World'
@@ -223,13 +223,13 @@ SELECT
     ENDS_WITH('hello world', 'world');      -- true
 
 -- String splitting
-SELECT 
+SELECT
     SPLIT('hello,world', ','),              -- ['hello', 'world']
     STRING_SPLIT('hello,world', ','),       -- ['hello', 'world']
     REGEXP_MATCHES('abc123def', '\d+');     -- ['123']
 
 -- String aggregation
-SELECT 
+SELECT
     department,
     STRING_AGG(name, ', ') as employee_list
 FROM employees
@@ -240,7 +240,7 @@ GROUP BY department;
 
 ```sql
 -- Regular expression matching
-SELECT 
+SELECT
     REGEXP_MATCHES('abc123def', '\d+'),                -- ['123']
     REGEXP_REPLACE('hello world', 'world', 'DuckDB'),  -- 'hello DuckDB'
     REGEXP_EXTRACT('abc123def', '\d+', 0),             -- '123'
@@ -255,14 +255,14 @@ SELECT UNNEST(REGEXP_MATCHES('abc123def456', '\d+'));  -- Multiple rows: '123', 
 
 ```sql
 -- Current date and time
-SELECT 
+SELECT
     CURRENT_DATE,                      -- Today's date
     CURRENT_TIME,                      -- Current time
     CURRENT_TIMESTAMP,                 -- Current date and time
     NOW();                             -- Current date and time (same as CURRENT_TIMESTAMP)
 
 -- Date and time parts
-SELECT 
+SELECT
     EXTRACT(YEAR FROM DATE '2023-05-15'),             -- 2023
     EXTRACT(MONTH FROM DATE '2023-05-15'),            -- 5
     EXTRACT(DAY FROM DATE '2023-05-15'),              -- 15
@@ -274,31 +274,31 @@ SELECT
     DATE_PART('year', DATE '2023-05-15');             -- 2023
 
 -- Date and time manipulation
-SELECT 
+SELECT
     -- Add intervals
     DATE '2023-05-15' + INTERVAL '1 day',             -- 2023-05-16
     TIMESTAMP '2023-05-15 14:30:00' + INTERVAL '2 hours', -- 2023-05-15 16:30:00
-    
+
     -- Subtract dates
     DATE '2023-05-15' - DATE '2023-05-10',            -- INTERVAL '5 days'
-    
+
     -- Date/time arithmetic
     DATE_ADD('day', 5, DATE '2023-05-15'),            -- 2023-05-20
     DATE_SUB('month', 1, DATE '2023-05-15'),          -- 2023-04-15
     DATE_TRUNC('month', DATE '2023-05-15'),           -- 2023-05-01
-    
+
     -- Format dates
     STRFTIME(DATE '2023-05-15', '%Y-%m-%d'),          -- '2023-05-15'
     STRFTIME(TIMESTAMP '2023-05-15 14:30:00', '%Y-%m-%d %H:%M'), -- '2023-05-15 14:30'
-    
+
     -- Parse strings to dates
     STRPTIME('2023-05-15', '%Y-%m-%d'),               -- DATE '2023-05-15'
     STRPTIME('2023-05-15 14:30:00', '%Y-%m-%d %H:%M:%S'); -- TIMESTAMP '2023-05-15 14:30:00'
 
 -- Range of dates
 SELECT * FROM generate_series(
-    DATE '2023-01-01', 
-    DATE '2023-01-10', 
+    DATE '2023-01-01',
+    DATE '2023-01-10',
     INTERVAL '1 day'
 ) AS date_series;
 ```
@@ -307,8 +307,8 @@ SELECT * FROM generate_series(
 
 ```sql
 -- Conditional expressions
-SELECT 
-    CASE 
+SELECT
+    CASE
         WHEN salary > 100000 THEN 'High'
         WHEN salary > 70000 THEN 'Medium'
         ELSE 'Low'
@@ -316,7 +316,7 @@ SELECT
 FROM employees;
 
 -- Simple CASE
-SELECT 
+SELECT
     CASE department
         WHEN 'Engineering' THEN 'Tech'
         WHEN 'Marketing' THEN 'Business'
@@ -325,16 +325,16 @@ SELECT
 FROM employees;
 
 -- Comparison functions
-SELECT 
+SELECT
     COALESCE(NULL, NULL, 'hello', 'world'),    -- 'hello' (first non-NULL value)
     NULLIF('hello', 'hello'),                  -- NULL (if equal)
     NULLIF('hello', 'world'),                  -- 'hello' (if not equal)
     GREATEST(5, 3, 9, 1),                      -- 9
     LEAST(5, 3, 9, 1),                         -- 1
-    
+
     -- Conditional value
     IF(salary > 80000, 'High', 'Standard') as salary_tier,
-    
+
     -- Short-circuit operations
     NULL OR 'hello',                          -- 'hello'
     'hello' OR NULL,                          -- 'hello'
@@ -346,7 +346,7 @@ SELECT
 
 ```sql
 -- Create and manipulate lists
-SELECT 
+SELECT
     LIST_VALUE(1, 2, 3),                      -- [1, 2, 3]
     ARRAY[1, 2, 3],                          -- [1, 2, 3] (alternative syntax)
     LIST_CONCAT([1, 2], [3, 4]),             -- [1, 2, 3, 4]
@@ -358,7 +358,7 @@ SELECT
     LIST_SLICE([1, 2, 3, 4, 5], 2, 4);       -- [2, 3, 4]
 
 -- Array aggregation
-SELECT 
+SELECT
     department,
     ARRAY_AGG(name) as employee_names,
     ARRAY_AGG(DISTINCT name) as unique_employee_names
@@ -366,11 +366,11 @@ FROM employees
 GROUP BY department;
 
 -- Unnesting arrays
-SELECT 
+SELECT
     department,
     UNNEST(employee_names) as employee
 FROM (
-    SELECT 
+    SELECT
         department,
         ARRAY_AGG(name) as employee_names
     FROM employees
@@ -382,13 +382,13 @@ FROM (
 
 ```sql
 -- Create and access structs
-SELECT 
+SELECT
     STRUCT_PACK(name := 'Alice', age := 30) as person,
     STRUCT_EXTRACT(STRUCT_PACK(name := 'Alice', age := 30), 'name'), -- 'Alice'
     STRUCT_PACK(name := 'Alice', age := 30)['name']; -- 'Alice' (alternative syntax)
 
 -- Create and access maps
-SELECT 
+SELECT
     MAP([['name', 'Alice'], ['age', '30']]) as person_map,
     MAP_EXTRACT(MAP([['name', 'Alice'], ['age', '30']]), 'name'), -- 'Alice'
     MAP([['name', 'Alice'], ['age', '30']])['name']; -- 'Alice' (alternative syntax)
@@ -398,7 +398,7 @@ SELECT
 
 ```sql
 -- Basic aggregates
-SELECT 
+SELECT
     COUNT(*),                           -- Count all rows
     COUNT(salary),                      -- Count non-NULL salary values
     COUNT(DISTINCT department),         -- Count unique departments
@@ -416,7 +416,7 @@ SELECT
 FROM employees;
 
 -- Conditional aggregates
-SELECT 
+SELECT
     department,
     COUNT(CASE WHEN salary > 80000 THEN 1 END) as high_salary_count,
     AVG(CASE WHEN gender = 'F' THEN salary END) as avg_female_salary
@@ -424,7 +424,7 @@ FROM employees
 GROUP BY department;
 
 -- Statistical aggregates
-SELECT 
+SELECT
     CORR(years_experience, salary),     -- Correlation
     REGR_SLOPE(salary, years_experience), -- Regression slope
     REGR_INTERCEPT(salary, years_experience), -- Regression intercept
@@ -436,7 +436,7 @@ FROM employees;
 
 ```sql
 -- Ranking functions
-SELECT 
+SELECT
     name,
     department,
     salary,
@@ -448,7 +448,7 @@ SELECT
 FROM employees;
 
 -- Analytic functions
-SELECT 
+SELECT
     name,
     department,
     salary,
@@ -460,7 +460,7 @@ SELECT
 FROM employees;
 
 -- Navigation functions
-SELECT 
+SELECT
     name,
     hire_date,
     salary,
@@ -471,7 +471,7 @@ SELECT
 FROM employees;
 
 -- Running calculations
-SELECT 
+SELECT
     name,
     hire_date,
     salary,
@@ -484,14 +484,14 @@ FROM employees;
 
 ```sql
 -- JSON creation and extraction
-SELECT 
+SELECT
     JSON_OBJECT('name', 'Alice', 'age', 30) as person_json,
     JSON_EXTRACT('{"name":"Alice","age":30}', '$.name') as extracted_name,
     JSON_EXTRACT_STRING('{"name":"Alice","age":30}', '$.name') as name_string,
     JSON_EXTRACT_INTEGER('{"name":"Alice","age":30}', '$.age') as age_int;
 
 -- Convert between JSON and other types
-SELECT 
+SELECT
     JSON_SERIALIZE(STRUCT_PACK(name := 'Alice', age := 30)), -- Convert struct to JSON
     JSON_DESERIALIZE('{"name":"Alice","age":30}', 'STRUCT(name VARCHAR, age INTEGER)'); -- JSON to struct
 ```
@@ -500,13 +500,13 @@ SELECT
 
 ```sql
 -- Full-text search
-SELECT * 
-FROM documents 
+SELECT *
+FROM documents
 WHERE LOWER(content) LIKE '%duckdb%';
 
 -- Custom search with pattern matching
-SELECT * 
-FROM employees 
+SELECT *
+FROM employees
 WHERE REGEXP_MATCHES(name, 'A.*a');
 ```
 
@@ -514,7 +514,7 @@ WHERE REGEXP_MATCHES(name, 'A.*a');
 
 ```sql
 -- Bitwise operators
-SELECT 
+SELECT
     5 & 3,  -- 1 (AND)
     5 | 3,  -- 7 (OR)
     5 # 3,  -- 6 (XOR)
@@ -527,7 +527,7 @@ SELECT
 
 ```sql
 -- Type checking
-SELECT 
+SELECT
     TYPEOF(42),                        -- 'INTEGER'
     TYPEOF('hello'),                   -- 'VARCHAR'
     TYPEOF(CURRENT_DATE);              -- 'DATE'
@@ -536,7 +536,7 @@ SELECT
 SELECT RANDOM_UUID();                 -- Generate a UUID
 
 -- System information
-SELECT 
+SELECT
     version(),                         -- DuckDB version
     current_user,                      -- Current user
     current_schema;                    -- Current schema
