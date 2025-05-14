@@ -22,14 +22,14 @@ DuckDB is an in-process SQL OLAP (Online Analytical Processing) database managem
 
 ## Comparison with Other Databases
 
-| Feature | DuckDB | SQLite | Traditional RDBMS |
-|---------|--------|--------|-------------------|
-| Focus | Analytical (OLAP) | Transactional (OLTP) | Varies |
-| Storage | Columnar | Row-based | Typically row-based |
-| Architecture | Embedded | Embedded | Client-server |
-| Parallelism | Yes | Limited | Yes |
-| Vectorized Execution | Yes | No | Varies |
-| Transaction Support | Yes | Yes | Yes |
+| Feature              | DuckDB            | SQLite               | Traditional RDBMS   |
+| -------------------- | ----------------- | -------------------- | ------------------- |
+| Focus                | Analytical (OLAP) | Transactional (OLTP) | Varies              |
+| Storage              | Columnar          | Row-based            | Typically row-based |
+| Architecture         | Embedded          | Embedded             | Client-server       |
+| Parallelism          | Yes               | Limited              | Yes                 |
+| Vectorized Execution | Yes               | No                   | Varies              |
+| Transaction Support  | Yes               | Yes                  | Yes                 |
 
 ## Common Use Cases
 

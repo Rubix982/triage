@@ -272,18 +272,18 @@ public class DuckDBExample {
         try {
             // Load the DuckDB JDBC driver
             Class.forName("org.duckdb.DuckDBDriver");
-            
+
             // Connect to an in-memory database
             Connection conn = DriverManager.getConnection("jdbc:duckdb:");
-            
+
             // Connect to a file database
             // Connection conn = DriverManager.getConnection("jdbc:duckdb:mydb.db");
-            
+
             // Create a table
             Statement stmt = conn.createStatement();
             stmt.execute("CREATE TABLE items(id INTEGER, name VARCHAR)");
             stmt.execute("INSERT INTO items VALUES (1, 'Item 1'), (2, 'Item 2')");
-            
+
             // Query data
             ResultSet rs = stmt.executeQuery("SELECT * FROM items");
             while (rs.next()) {
@@ -291,7 +291,7 @@ public class DuckDBExample {
                 String name = rs.getString("name");
                 System.out.println(id + ": " + name);
             }
-            
+
             // Clean up
             rs.close();
             stmt.close();
@@ -318,15 +318,15 @@ int main() {
     // Connect to an in-memory database
     DuckDB db(nullptr);
     Connection con(db);
-    
+
     // Create a table
     con.Query("CREATE TABLE items(id INTEGER, name VARCHAR)");
     con.Query("INSERT INTO items VALUES (1, 'Item 1'), (2, 'Item 2')");
-    
+
     // Query data
     auto result = con.Query("SELECT * FROM items");
     result->Print();
-    
+
     return 0;
 }
 ```
@@ -344,20 +344,20 @@ npm install node-duckdb
 #### Basic Usage
 
 ```javascript
-const duckdb = require('node-duckdb');
+const duckdb = require("node-duckdb");
 
 // Create a new database in memory
-const db = new duckdb.Database(':memory:');
+const db = new duckdb.Database(":memory:");
 
 // Create a connection to the database
 const conn = new duckdb.Connection(db);
 
 // Execute queries
-conn.executeSync('CREATE TABLE items(id INTEGER, name VARCHAR)');
+conn.executeSync("CREATE TABLE items(id INTEGER, name VARCHAR)");
 conn.executeSync("INSERT INTO items VALUES (1, 'Item 1'), (2, 'Item 2')");
 
 // Query data
-const result = conn.executeSync('SELECT * FROM items');
+const result = conn.executeSync("SELECT * FROM items");
 console.log(result);
 
 // Clean up
@@ -384,11 +384,11 @@ use duckdb::{Connection, Result, params};
 fn main() -> Result<()> {
     // Connect to an in-memory database
     let conn = Connection::open_in_memory()?;
-    
+
     // Create a table
     conn.execute("CREATE TABLE items(id INTEGER, name VARCHAR)", [])?;
     conn.execute("INSERT INTO items VALUES (1, 'Item 1'), (2, 'Item 2')", [])?;
-    
+
     // Query data
     let mut stmt = conn.prepare("SELECT * FROM items")?;
     let rows = stmt.query_map([], |row| {
@@ -396,11 +396,11 @@ fn main() -> Result<()> {
         let name: String = row.get(1)?;
         Ok(format!("{}: {}", id, name))
     })?;
-    
+
     for item in rows {
         println!("{}", item?);
     }
-    
+
     Ok(())
 }
 ```
@@ -518,9 +518,9 @@ DuckDB can read and write CSV files with various options.
 SELECT * FROM 'data.csv';
 
 -- Read a CSV file with options
-SELECT * FROM read_csv('data.csv', 
-    delimiter=',', 
-    header=true, 
+SELECT * FROM read_csv('data.csv',
+    delimiter=',',
+    header=true,
     auto_detect=true,
     sample_size=1000,
     quote='"',
@@ -713,21 +713,25 @@ SET autocommit=false;
 1. **Use appropriate data types**: Choose the smallest data type that fits your needs.
 
 2. **Create indexes for frequently queried columns**:
+
    ```sql
    CREATE INDEX idx_customer_id ON orders(customer_id);
    ```
 
 3. **Use partitioned queries for large datasets**:
+
    ```sql
    SELECT * FROM 'data_*.parquet';
    ```
 
 4. **Adjust memory settings for large operations**:
+
    ```sql
    SET memory_limit='16GB';
    ```
 
 5. **Leverage parallel execution**:
+
    ```sql
    SET threads=12;
    ```
@@ -737,11 +741,13 @@ SET autocommit=false;
 7. **Push predicates down to data sources** when possible.
 
 8. **Use EXPLAIN to understand query execution**:
+
    ```sql
    EXPLAIN SELECT * FROM orders WHERE customer_id = 100;
    ```
 
 9. **For large imports, use COPY with appropriate options**:
+
    ```sql
    COPY large_table FROM 'data.csv' (DELIMITER ',', HEADER, PARALLEL true);
    ```

@@ -131,7 +131,7 @@ INSERT INTO employees VALUES (1, 'Alice', 'Engineering', 85000, '2020-01-15');
 INSERT INTO employees (id, name, department) VALUES (2, 'Bob', 'Marketing');
 
 -- Insert multiple rows
-INSERT INTO employees VALUES 
+INSERT INTO employees VALUES
     (3, 'Charlie', 'Engineering', 90000, '2019-03-20'),
     (4, 'Diana', 'HR', 70000, '2021-05-10');
 
@@ -152,8 +152,8 @@ UPDATE employees SET salary = salary * 1.1;
 UPDATE employees SET salary = 95000 WHERE id = 3;
 
 -- Update multiple columns
-UPDATE employees 
-SET department = 'Engineering', salary = 88000 
+UPDATE employees
+SET department = 'Engineering', salary = 88000
 WHERE id = 2;
 ```
 
@@ -167,7 +167,7 @@ DELETE FROM temp_data;
 DELETE FROM employees WHERE department = 'Marketing';
 
 -- Delete using a subquery
-DELETE FROM employees 
+DELETE FROM employees
 WHERE department IN (SELECT department FROM departments WHERE is_active = false);
 ```
 
@@ -199,23 +199,23 @@ SELECT * FROM employees LIMIT 10 OFFSET 20;
 
 ```sql
 -- Multiple conditions
-SELECT * FROM employees 
+SELECT * FROM employees
 WHERE department = 'Engineering' AND salary > 80000;
 
 -- IN clause
-SELECT * FROM employees 
+SELECT * FROM employees
 WHERE department IN ('Engineering', 'Marketing', 'HR');
 
 -- BETWEEN clause
-SELECT * FROM employees 
+SELECT * FROM employees
 WHERE salary BETWEEN 70000 AND 90000;
 
 -- Pattern matching
-SELECT * FROM employees 
+SELECT * FROM employees
 WHERE name LIKE 'A%';  -- Names starting with 'A'
 
 -- NULL handling
-SELECT * FROM employees 
+SELECT * FROM employees
 WHERE hire_date IS NULL;
 ```
 
@@ -223,7 +223,7 @@ WHERE hire_date IS NULL;
 
 ```sql
 -- Basic aggregation
-SELECT 
+SELECT
     COUNT(*) as employee_count,
     AVG(salary) as average_salary,
     MIN(salary) as min_salary,
@@ -293,8 +293,8 @@ WHERE avg_salary > 80000;
 SELECT e.name, e.department, e.salary
 FROM employees e
 WHERE e.salary > (
-    SELECT AVG(salary) 
-    FROM employees 
+    SELECT AVG(salary)
+    FROM employees
     WHERE department = e.department
 );
 ```
@@ -311,7 +311,7 @@ WITH dept_stats AS (
 SELECT * FROM dept_stats WHERE emp_count > 5;
 
 -- Multiple CTEs
-WITH 
+WITH
 dept_stats AS (
     SELECT department, COUNT(*) as emp_count, AVG(salary) as avg_salary
     FROM employees
@@ -347,10 +347,10 @@ COPY employees FROM 'path/to/employees.csv' (DELIMITER ',', HEADER);
 
 -- Import from CSV with options
 COPY employees FROM 'path/to/employees.csv' (
-    DELIMITER ';', 
-    HEADER, 
-    NULL 'NA', 
-    ESCAPE '\', 
+    DELIMITER ';',
+    HEADER,
+    NULL 'NA',
+    ESCAPE '\',
     QUOTE '"'
 );
 
@@ -368,7 +368,7 @@ COPY employees FROM 'path/to/employees.json';
 COPY employees TO 'path/to/output.csv' (DELIMITER ',', HEADER);
 
 -- Export query results to CSV
-COPY (SELECT * FROM employees WHERE department = 'Engineering') 
+COPY (SELECT * FROM employees WHERE department = 'Engineering')
 TO 'path/to/engineers.csv' (DELIMITER ',', HEADER);
 
 -- Export to Parquet
@@ -460,8 +460,8 @@ SELECT STRING_AGG(name, ', ') as employee_list FROM employees;
 SELECT * FROM employees WHERE name REGEXP '^[A-C]';
 
 -- Date functions
-SELECT date_part('month', hire_date) as hire_month, COUNT(*) 
-FROM employees 
+SELECT date_part('month', hire_date) as hire_month, COUNT(*)
+FROM employees
 GROUP BY hire_month;
 ```
 
