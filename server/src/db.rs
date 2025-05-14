@@ -89,70 +89,73 @@ pub async fn get_stored_project_ids() -> Vec<String> {
     ids
 }
 
-pub async fn save_issues_to_duckdb(issue: &IssueFieldMetadata) {
+pub async fn save_issues_batch_to_duckdb(issues: &[IssueFieldMetadata]) {
     log_step(
         "📥",
-        &format!("Inserting issue [{}] into DuckDB...", issue.key),
+        &format!("Inserting {} issues into DuckDB...", issues.len()),
     );
 
-    with_transaction("save_issues", |tx| {
+    with_transaction("save_issues_batch", |tx| {
         let mut stmt = tx
             .prepare(INSERT_ISSUE_METADATA)
-            .unwrap_or_else(|_| panic!("{} Prepare insert", log_error("save_issues")));
+            .unwrap_or_else(|_| panic!("{} Prepare insert", log_error("save_issues_batch")));
 
-        let summary = issue.summary.as_deref().unwrap_or("");
-        let created = issue.created.as_deref().unwrap_or("");
-        let updated = issue.updated.as_deref().unwrap_or("");
-        let rendered_files = issue.rendered_fields.as_deref().unwrap_or("");
-        let names = issue.names.as_deref().unwrap_or("");
-        let schema = issue.schema.as_deref().unwrap_or("");
-        let transitions = issue.transitions.as_deref().unwrap_or("");
-        let edit_meta = issue.edit_meta.as_deref().unwrap_or("");
-        let changelog = issue.changelog.as_deref().unwrap_or("");
-        let versioned_representations = issue.versioned_representations.as_deref().unwrap_or("");
+        for issue in issues {
+            let summary = issue.summary.as_deref().unwrap_or("");
+            let created = issue.created.as_deref().unwrap_or("");
+            let updated = issue.updated.as_deref().unwrap_or("");
+            let rendered_fields = issue.rendered_fields.as_deref().unwrap_or("");
+            let names = issue.names.as_deref().unwrap_or("");
+            let schema = issue.schema.as_deref().unwrap_or("");
+            let transitions = issue.transitions.as_deref().unwrap_or("");
+            let edit_meta = issue.edit_meta.as_deref().unwrap_or("");
+            let changelog = issue.changelog.as_deref().unwrap_or("");
+            let versioned_representations =
+                issue.versioned_representations.as_deref().unwrap_or("");
 
-        let watcher = json_opt_to_string(&issue.watcher);
-        let attachment = json_opt_to_string(&issue.attachment);
-        let sub_tasks = json_opt_to_string(&issue.sub_tasks);
-        let description = json_opt_to_string(&issue.description);
-        let project = json_opt_to_string(&issue.project);
-        let comment = json_opt_to_string(&issue.comment);
-        let issue_links = json_opt_to_string(&issue.issue_links);
-        let work_log = json_opt_to_string(&issue.work_log);
-        let time_tracking = json_opt_to_string(&issue.time_tracking);
+            let watcher = json_opt_to_string(&issue.watcher);
+            let attachment = json_opt_to_string(&issue.attachment);
+            let sub_tasks = json_opt_to_string(&issue.sub_tasks);
+            let description = json_opt_to_string(&issue.description);
+            let project = json_opt_to_string(&issue.project);
+            let comment = json_opt_to_string(&issue.comment);
+            let issue_links = json_opt_to_string(&issue.issue_links);
+            let work_log = json_opt_to_string(&issue.work_log);
+            let time_tracking = json_opt_to_string(&issue.time_tracking);
 
-        stmt.execute([
-            &issue.id,
-            &issue.key,
-            &issue.self_link,
-            summary,
-            &issue.status,
-            created,
-            updated,
-            rendered_files,
-            names,
-            schema,
-            transitions,
-            edit_meta,
-            changelog,
-            versioned_representations,
-            &watcher,
-            &attachment,
-            &sub_tasks,
-            &description,
-            &project,
-            &comment,
-            &issue_links,
-            &work_log,
-            &time_tracking,
-        ])
-        .unwrap_or_else(|_| panic!("{} Insert issue", log_error("save_issues")));
+            stmt.execute([
+                &issue.id,
+                &issue.key,
+                &issue.self_link,
+                summary,
+                &issue.status,
+                created,
+                updated,
+                rendered_fields,
+                names,
+                schema,
+                transitions,
+                edit_meta,
+                changelog,
+                versioned_representations,
+                &watcher,
+                &attachment,
+                &sub_tasks,
+                &description,
+                &project,
+                &comment,
+                &issue_links,
+                &work_log,
+                &time_tracking,
+            ])
+            .unwrap_or_else(|_| panic!("{} Insert issue", log_error("save_issues_batch")));
+        }
 
         println!(
             "{}",
-            format!("➡ Issue [{}] inserted: {}", issue.key, summary).blue()
+            format!("✅ Successfully inserted {} issues.", issues.len()).green()
         );
     });
 
-    log_success("Issue committed to DuckDB.");
+    log_success("Batch commit complete.");
 }
