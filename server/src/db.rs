@@ -5,6 +5,7 @@ use crate::queries::{
     CREATE_ISSUES_TABLE, CREATE_PROJECT_TABLE, GET_PROJECT_IDS, INSERT_ISSUE_METADATA,
     INSERT_PROJECT,
 };
+// Content storage tables are now initialized separately
 use crate::types::{IssueFieldMetadata, Project};
 use crate::utils::{json_opt_to_string, log_error, log_step, log_success};
 use colored::*;
@@ -113,6 +114,26 @@ pub async fn save_issues_batch_to_duckdb(issues: &[IssueFieldMetadata]) {
             let versioned_representations =
                 issue.versioned_representations.as_deref().unwrap_or("");
 
+            // New fields
+            let issue_type = issue.issue_type.as_deref().unwrap_or("");
+            let issue_type_id = issue.issue_type_id.as_deref().unwrap_or("");
+            let is_subtask = issue.is_subtask.unwrap_or(false);
+            let hierarchy_level = issue.hierarchy_level.unwrap_or(0);
+            let priority = issue.priority.as_deref().unwrap_or("");
+            let priority_id = issue.priority_id.as_deref().unwrap_or("");
+            let assignee = issue.assignee.as_deref().unwrap_or("");
+            let reporter = issue.reporter.as_deref().unwrap_or("");
+            let project_name = issue.project_name.as_deref().unwrap_or("");
+            let project_key = issue.project_key.as_deref().unwrap_or("");
+            
+            // Serialize complex fields to JSON
+            let labels = issue.labels.as_ref()
+                .map(|l| serde_json::to_string(l).unwrap_or_default())
+                .unwrap_or_default();
+            let extracted_links = issue.extracted_links.as_ref()
+                .map(|l| serde_json::to_string(l).unwrap_or_default())
+                .unwrap_or_default();
+
             let watcher = json_opt_to_string(&issue.watcher);
             let attachment = json_opt_to_string(&issue.attachment);
             let sub_tasks = json_opt_to_string(&issue.sub_tasks);
@@ -123,14 +144,26 @@ pub async fn save_issues_batch_to_duckdb(issues: &[IssueFieldMetadata]) {
             let work_log = json_opt_to_string(&issue.work_log);
             let time_tracking = json_opt_to_string(&issue.time_tracking);
 
-            stmt.execute([
-                &issue.id,
-                &issue.key,
-                &issue.self_link,
+            stmt.execute(duckdb::params![
+                issue.id,
+                issue.key,
+                issue.self_link,
                 summary,
-                &issue.status,
+                issue.status,
+                issue_type,
+                issue_type_id,
+                is_subtask.to_string(),
+                hierarchy_level.to_string(),
+                priority,
+                priority_id,
+                assignee,
+                reporter,
+                labels,
                 created,
                 updated,
+                project_name,
+                project_key,
+                extracted_links,
                 rendered_fields,
                 names,
                 schema,
@@ -138,15 +171,15 @@ pub async fn save_issues_batch_to_duckdb(issues: &[IssueFieldMetadata]) {
                 edit_meta,
                 changelog,
                 versioned_representations,
-                &watcher,
-                &attachment,
-                &sub_tasks,
-                &description,
-                &project,
-                &comment,
-                &issue_links,
-                &work_log,
-                &time_tracking,
+                watcher,
+                attachment,
+                sub_tasks,
+                description,
+                project,
+                comment,
+                issue_links,
+                work_log,
+                time_tracking,
             ])
             .unwrap_or_else(|_| panic!("{} Insert issue", log_error("save_issues_batch")));
         }
@@ -159,3 +192,5 @@ pub async fn save_issues_batch_to_duckdb(issues: &[IssueFieldMetadata]) {
 
     log_success("Batch commit complete.");
 }
+
+// Content storage table creation is handled in content_storage.rs module

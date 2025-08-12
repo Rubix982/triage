@@ -14,8 +14,20 @@ CREATE TABLE IF NOT EXISTS issues (
     self_link TEXT,
     summary TEXT,
     status TEXT,
+    issue_type TEXT,
+    issue_type_id TEXT,
+    is_subtask BOOLEAN,
+    hierarchy_level INTEGER,
+    priority TEXT,
+    priority_id TEXT,
+    assignee TEXT,
+    reporter TEXT,
+    labels TEXT, -- JSON array as string
     created TEXT,
     updated TEXT,
+    project_name TEXT,
+    project_key TEXT,
+    extracted_links TEXT, -- JSON array as string
     rendered_fields TEXT,
     names TEXT,
     schema TEXT,
@@ -31,7 +43,7 @@ CREATE TABLE IF NOT EXISTS issues (
     comment TEXT,
     issue_links TEXT,
     work_log TEXT,
-    time_tracking TEXT,
+    time_tracking TEXT
 );
 "#;
 
@@ -43,16 +55,20 @@ INSERT INTO projects (id, key, name) VALUES (?, ?, ?);
 pub const INSERT_ISSUE_METADATA: &str = r#"
 INSERT OR REPLACE INTO issues
 (id, key, self_link, summary, status, 
-created, updated, rendered_fields, names, schema,
-transitions, edit_meta, changelog, versioned_representations, watcher,
-attachment, sub_tasks, description, project, comment,
-issue_links, work_log, time_tracking)
+issue_type, issue_type_id, is_subtask, hierarchy_level, priority,
+priority_id, assignee, reporter, labels, created, 
+updated, project_name, project_key, extracted_links, rendered_fields, 
+names, schema, transitions, edit_meta, changelog, 
+versioned_representations, watcher, attachment, sub_tasks, description, 
+project, comment, issue_links, work_log, time_tracking)
 VALUES
 (?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?)
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?)
 "#;
 
 pub const GET_PROJECT_IDS: &str = r#"

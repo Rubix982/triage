@@ -19,6 +19,15 @@ futures = "0.3.31"
 chrono = "0.4.41"
 num_cpus = "1.0"
 rand = "0.8"
+axum = { version = "0.7", features = ["json"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+regex = "1.0"
+rusqlite = { version = "0.31", features = ["bundled"] }
+url = "2.5"
+urlencoding = "2.1"
+oauth2 = "4.4"
 
 [dev-dependencies]
 criterion = "0.5"

@@ -8,15 +8,40 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use inquire::MultiSelect;
 
+mod advanced_analytics;
+mod analytics;
 mod auth;
 mod constants;
 mod db;
+mod graph;
 mod jira;
+mod knowledge_engine;
+mod link_detector;
+mod google_auth;
+mod google_client;
+mod slack_auth;
+mod slack_client;
+mod content_extractor;
+mod content_storage;
+mod unified_search;
 mod queries;
-mod types;
 mod routes;
+mod semantic_search;
+mod server;
+mod smart_graph;
+mod sync_status;
+mod types;
+mod user_notes;
 mod utils;
 mod db_utils;
+
+// Enhanced people and relationship tracking
+mod people_graph;
+mod enhanced_jira_extractor;
+mod enhanced_google_extractor;
+mod enhanced_slack_extractor;
+mod people_integration;
+mod people_routes;
 
 // Tests
 mod routes_test;
@@ -40,6 +65,9 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
+
+    /// Start the web server for graph visualization
+    Serve,
 }
 
 #[tokio::main]
@@ -97,6 +125,11 @@ async fn main() {
 
             sync_issues_for_projects(&selected_ids).await;
         }
+        Some(Commands::Serve) => {
+            if let Err(e) = server::start_server().await {
+                eprintln!("❌ Server error: {}", e);
+            }
+        }
         None => {
             println!(
                 "{}",
@@ -109,4 +142,7 @@ async fn main() {
 async fn initialize_duck_db() {
     create_project_table().await;
     create_issues_table().await;
+    user_notes::initialize_notes_tables().await;
+    content_storage::create_content_storage_tables().await;
+    people_graph::initialize_people_tables().await;
 }
