@@ -1,7 +1,8 @@
 use crate::auth::{authenticate, get_domain};
 use crate::constants::{BATCH_SIZE, PAGE_SIZE};
 use crate::db::save_issues_batch_to_duckdb;
-use crate::routes::{get_issue_object, get_projects_api_route, search_issues_for_project};
+use crate::link_detector::LinkDetector;
+use crate::routes::{get_issue_object, get_projects_api_route, search_issues_for_project_all_types};
 use crate::types::{Issue, IssueFieldMetadata, Project};
 use crate::utils::{extract_json_field_as_string, get_optional_field};
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -103,7 +104,7 @@ pub async fn fetch_issues_for_project(project_id: &str, tx: mpsc::Sender<IssueFi
             start_at, project_id
         );
 
-        let url = search_issues_for_project(&ctx.domain, project_id, start_at);
+        let url = search_issues_for_project_all_types(&ctx.domain, project_id, start_at);
 
         let res = ctx
             .client
@@ -204,8 +205,6 @@ async fn get_issue_metaobjects(
         }
     }
 
-    writer.await.unwrap();
-
     println!(
         "✅ Completed metadata sync for {} issues ({} success, {} failed).",
         success_count + fail_count,
@@ -261,7 +260,8 @@ async fn fetch_metadata_with_headers(
     ctx: &SyncContext,
     issue: &Issue,
 ) -> Result<IssueFieldMetadata, (StatusCode, String, reqwest::header::HeaderMap)> {
-    let url = get_issue_object(&ctx.domain, &issue.id);
+    let url = format!("{}?expand=renderedFields,names,schema,editmeta,changelog,versionedRepresentations", 
+                     get_issue_object(&ctx.domain, &issue.id));
 
     let res = ctx
         .client
@@ -295,10 +295,74 @@ async fn fetch_metadata_with_headers(
         headers.clone(),
     ))?;
 
+    // Initialize link detector
+    let link_detector = LinkDetector::new();
+    
+    // Extract comprehensive issue information
+    let issue_type = fields.get("issuetype")
+        .and_then(|it| it.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let issue_type_id = fields.get("issuetype")
+        .and_then(|it| it.get("id"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let is_subtask = fields.get("issuetype")
+        .and_then(|it| it.get("subtask"))
+        .and_then(|st| st.as_bool());
+        
+    let hierarchy_level = fields.get("issuetype")
+        .and_then(|it| it.get("hierarchyLevel"))
+        .and_then(|hl| hl.as_i64())
+        .map(|l| l as i32);
+        
+    let priority = fields.get("priority")
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let priority_id = fields.get("priority")
+        .and_then(|p| p.get("id"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let assignee = fields.get("assignee")
+        .and_then(|a| a.get("displayName"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let reporter = fields.get("reporter")
+        .and_then(|r| r.get("displayName"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let labels = fields.get("labels")
+        .and_then(|l| l.as_array())
+        .map(|arr| arr.iter()
+            .filter_map(|v| v.as_str())
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>());
+            
+    let project_name = fields.get("project")
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+        
+    let project_key = fields.get("project")
+        .and_then(|p| p.get("key"))
+        .and_then(|n| n.as_str())
+        .map(|s| s.to_string());
+
+    // Extract links from issue content
+    let issue_key = body_json["key"].as_str().unwrap_or("UNKNOWN");
+    let extracted_links = link_detector.extract_links_from_issue(&body_json["fields"], issue_key);
+
     Ok(IssueFieldMetadata {
-        id: body_json["id"].to_string(),
-        key: body_json["key"].to_string(),
-        self_link: body_json["self"].to_string(),
+        id: body_json["id"].as_str().unwrap_or("").trim_matches('"').to_string(),
+        key: body_json["key"].as_str().unwrap_or("").trim_matches('"').to_string(),
+        self_link: body_json["self"].as_str().unwrap_or("").trim_matches('"').to_string(),
         summary: issue.fields.summary.clone(),
         status: issue
             .fields
@@ -307,8 +371,20 @@ async fn fetch_metadata_with_headers(
             .map(|s| s.name.as_str())
             .unwrap_or("")
             .to_string(),
+        issue_type,
+        issue_type_id,
+        is_subtask,
+        hierarchy_level,
+        priority,
+        priority_id,
+        assignee,
+        reporter,
+        labels,
         created: issue.fields.created.clone(),
         updated: issue.fields.updated.clone(),
+        project_name,
+        project_key,
+        extracted_links: if extracted_links.is_empty() { None } else { Some(extracted_links) },
         rendered_fields: Some(extract_json_field_as_string(&body_json, "renderedFields")),
         names: Some(extract_json_field_as_string(&body_json, "names")),
         schema: Some(extract_json_field_as_string(&body_json, "schema")),
@@ -319,14 +395,14 @@ async fn fetch_metadata_with_headers(
             &body_json,
             "versionedRepresentations",
         )),
-        watcher: get_optional_field(fields, "watcher").unwrap_or_default(),
-        attachment: get_optional_field(fields, "attachment").unwrap_or_default(),
-        sub_tasks: get_optional_field(fields, "sub-tasks").unwrap_or_default(),
-        description: get_optional_field(fields, "description").unwrap_or_default(),
-        project: get_optional_field(fields, "project").unwrap_or_default(),
-        comment: get_optional_field(fields, "comment").unwrap_or_default(),
-        issue_links: get_optional_field(fields, "issuelinks").unwrap_or_default(),
-        work_log: get_optional_field(fields, "worklog").unwrap_or_default(),
-        time_tracking: get_optional_field(fields, "timetracking").unwrap_or_default(),
+        watcher: get_optional_field(fields, "watcher"),
+        attachment: get_optional_field(fields, "attachment"),
+        sub_tasks: get_optional_field(fields, "sub-tasks"),
+        description: get_optional_field(fields, "description"),
+        project: get_optional_field(fields, "project"),
+        comment: get_optional_field(fields, "comment"),
+        issue_links: get_optional_field(fields, "issuelinks"),
+        work_log: get_optional_field(fields, "worklog"),
+        time_tracking: get_optional_field(fields, "timetracking"),
     })
 }
