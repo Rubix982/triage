@@ -214,7 +214,7 @@ async fn generate_enhanced_base_graph() -> KnowledgeGraph {
                     id: format!("issue_{}", id),
                     label: format!("{}: {}", key, summary.chars().take(40).collect::<String>()),
                     node_type: NodeType::Issue,
-                    size,
+                    size: size as f32,
                     color: color.to_string(),
                     metadata: Some(serde_json::json!({
                         "original_id": id,
@@ -336,12 +336,15 @@ async fn generate_enhanced_base_graph() -> KnowledgeGraph {
         *edge_type_counts.entry(edge.edge_type.clone()).or_insert(0) += 1;
     }
 
+    let total_nodes = nodes.len();
+    let total_edges = edges.len();
+    
     KnowledgeGraph {
         nodes,
         edges,
         metadata: crate::types::GraphMetadata {
-            total_nodes: nodes.len(),
-            total_edges: edges.len(),
+            total_nodes,
+            total_edges,
             node_types: node_type_counts,
             edge_types: edge_type_counts,
             generated_at: Utc::now().to_rfc3339(),
@@ -494,7 +497,7 @@ async fn detect_communities(
     
     // Simple community detection based on project groupings and connectivity
     let mut project_clusters: HashMap<String, Vec<String>> = HashMap::new();
-    let mut issue_clusters: HashMap<String, Vec<String>> = HashMap::new();
+    let _issue_clusters: HashMap<String, Vec<String>> = HashMap::new();
     
     // Group by projects first
     for node in nodes {
@@ -535,6 +538,8 @@ async fn detect_communities(
                 node_to_cluster.insert(node_id.clone(), cluster_id.clone());
             }
             
+            let node_count = node_ids.len();
+            
             clusters.push(GraphCluster {
                 id: cluster_id,
                 name: format!("{} Ecosystem", project_name),
@@ -544,7 +549,7 @@ async fn detect_communities(
                 cluster_type: "project".to_string(),
                 description: format!("Project-based cluster centered around {}", project_name),
                 key_insights: vec![
-                    format!("Contains {} interconnected issues", node_ids.len() - 1),
+                    format!("Contains {} interconnected issues", node_count - 1),
                     format!("Cohesion score: {:.1}%", cohesion_score),
                     "Represents focused domain expertise".to_string(),
                 ],
@@ -588,7 +593,7 @@ async fn detect_communities(
 
 async fn generate_learning_pathways(
     nodes: &[EnhancedGraphNode],
-    edges: &[EnhancedGraphEdge],
+    _edges: &[EnhancedGraphEdge],
     clusters: &[GraphCluster],
 ) -> Vec<LearningPathway> {
     log_step("📚", "Generating intelligent learning pathways...");

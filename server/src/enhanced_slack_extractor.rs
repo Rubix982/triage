@@ -1,5 +1,5 @@
 use crate::slack_client::SlackApiClient;
-use crate::people_graph::{IdentityResolver, DetailedInteraction, InteractionType};
+use crate::people_graph::IdentityResolver;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
@@ -765,8 +765,8 @@ impl EnhancedSlackExtractor {
         let mut content = Vec::new();
         
         // Extract files if present
-        if let Some(files) = &message.files {
-            for file in files {
+        if !message.files.is_empty() {
+            for file in &message.files {
                 content.push(MessageContent {
                     content_type: ContentType::FileUpload,
                     content_data: ContentData::File {

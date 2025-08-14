@@ -329,7 +329,7 @@ async fn extract_knowledge_concepts() -> Vec<KnowledgeConcept> {
         let mut concept_issues: HashMap<String, HashSet<String>> = HashMap::new();
 
         for row in rows {
-            if let Ok((id, key, summary, description, comment, project, status)) = row {
+            if let Ok((id, key, summary, description, comment, project, _status)) = row {
                 let full_text = format!("{} {} {} {}", summary, description, comment, project);
                 let extracted_concepts = extract_concepts_from_text(&full_text);
                 
@@ -446,16 +446,30 @@ fn calculate_team_expertise(tech: &str, frequency: i32) -> f64 {
 }
 
 fn extract_version_info(tech: &str, contexts: &[String]) -> Option<String> {
-    let version_patterns = vec![
-        r"(?i)v?\d+\.\d+(?:\.\d+)?",
-        r"(?i)version\s+\d+\.\d+",
+    // Create tech-specific patterns first, then fall back to general patterns
+    let mut version_patterns = vec![
+        format!(r"(?i){}\s+v?(\d+\.\d+(?:\.\d+)?)", regex::escape(tech)),
+        format!(r"(?i){}\s+version\s+(\d+\.\d+(?:\.\d+)?)", regex::escape(tech)),
+        format!(r"(?i){}-(\d+\.\d+(?:\.\d+)?)", regex::escape(tech)),
     ];
     
+    // Add general patterns as fallback
+    version_patterns.extend(vec![
+        r"(?i)v?\d+\.\d+(?:\.\d+)?".to_string(),
+        r"(?i)version\s+\d+\.\d+".to_string(),
+    ]);
+    
     for context in contexts {
-        for pattern in &version_patterns {
-            let re = Regex::new(pattern).unwrap();
-            if let Some(mat) = re.find(context) {
-                return Some(mat.as_str().to_string());
+        // Check if context mentions the technology
+        let context_lower = context.to_lowercase();
+        let tech_lower = tech.to_lowercase();
+        
+        if context_lower.contains(&tech_lower) {
+            for pattern in &version_patterns {
+                let re = Regex::new(pattern).unwrap();
+                if let Some(mat) = re.find(context) {
+                    return Some(mat.as_str().to_string());
+                }
             }
         }
     }
@@ -474,8 +488,22 @@ fn generate_usage_context(tech: &str, contexts: &[String]) -> String {
 
 fn calculate_success_rate(tech: &str, issues: &[String], total_usage: i32) -> f64 {
     if total_usage == 0 { return 0.85; }
+    
+    // Tech-specific adjustments based on complexity and maturity
+    let base_success_rate = match tech.to_lowercase().as_str() {
+        // Well-established technologies typically have higher success rates
+        tech if tech.contains("react") || tech.contains("javascript") || tech.contains("python") => 0.9,
+        // Newer or more complex technologies might have lower success rates
+        tech if tech.contains("kubernetes") || tech.contains("docker") || tech.contains("microservice") => 0.75,
+        // Database technologies usually have good stability
+        tech if tech.contains("postgres") || tech.contains("mysql") || tech.contains("redis") => 0.85,
+        // Default rate for unknown technologies
+        _ => 0.8,
+    };
+    
     let issue_rate = issues.len() as f64 / total_usage as f64;
-    (1.0 - issue_rate.min(0.3)).max(0.5)
+    let adjusted_rate = base_success_rate * (1.0 - issue_rate.min(0.4));
+    adjusted_rate.max(0.5).min(0.98)
 }
 
 fn extract_common_mistakes(tech: &str, issues: &[String]) -> Vec<String> {
@@ -603,10 +631,25 @@ fn assess_skill_level(tech: &str) -> String {
 }
 
 fn assess_adoption_trend(tech: &str, frequency: i32) -> String {
+    // Adjust thresholds based on technology type and expected adoption patterns
+    let (emerging_threshold, stable_threshold, growing_threshold) = match tech.to_lowercase().as_str() {
+        // Frontend frameworks tend to have higher adoption rates
+        tech if tech.contains("react") || tech.contains("vue") || tech.contains("angular") => (5, 15, 30),
+        // Infrastructure tools have different adoption patterns
+        tech if tech.contains("kubernetes") || tech.contains("docker") => (3, 8, 20),
+        // Database technologies typically have slower but steady adoption
+        tech if tech.contains("postgres") || tech.contains("mysql") => (2, 6, 15),
+        // Languages and core technologies
+        tech if tech.contains("python") || tech.contains("javascript") || tech.contains("java") => (8, 25, 50),
+        // Default thresholds for unknown technologies
+        _ => (3, 10, 20),
+    };
+    
     match frequency {
-        f if f > 20 => "growing".to_string(),
-        f if f > 10 => "stable".to_string(),
-        _ => "emerging".to_string(),
+        f if f >= growing_threshold => "growing".to_string(),
+        f if f >= stable_threshold => "stable".to_string(),
+        f if f >= emerging_threshold => "emerging".to_string(),
+        _ => "experimental".to_string(),
     }
 }
 
@@ -834,12 +877,13 @@ async fn identify_technologies() -> Vec<TechnologyKnowledge> {
     });
 
     // Convert to structured technology knowledge
-    for (tech_name, frequency) in tech_frequency {
-        if frequency >= 3 {
+    for (tech_name, frequency) in &tech_frequency {
+        if *frequency >= 3 {
             let category = categorize_technology(&tech_name);
-            let expertise_level = calculate_team_expertise(&tech_name, frequency);
-            let issues = tech_issues.get(&tech_name).unwrap_or(&Vec::new());
-            let contexts = tech_contexts.get(&tech_name).unwrap_or(&Vec::new());
+            let expertise_level = calculate_team_expertise(&tech_name, *frequency);
+            let empty_vec = Vec::new();
+            let issues = tech_issues.get(tech_name.as_str()).unwrap_or(&empty_vec);
+            let contexts = tech_contexts.get(tech_name.as_str()).unwrap_or(&empty_vec);
             
             technologies.push(TechnologyKnowledge {
                 id: format!("tech_{}", tech_name.replace(" ", "_").to_lowercase()),
@@ -849,8 +893,8 @@ async fn identify_technologies() -> Vec<TechnologyKnowledge> {
                 usage_patterns: vec![
                     UsagePattern {
                         context: generate_usage_context(&tech_name, contexts),
-                        frequency,
-                        success_rate: calculate_success_rate(&tech_name, issues, frequency),
+                        frequency: *frequency,
+                        success_rate: calculate_success_rate(&tech_name, issues, *frequency),
                         common_mistakes: extract_common_mistakes(&tech_name, issues),
                     }
                 ],
@@ -866,7 +910,7 @@ async fn identify_technologies() -> Vec<TechnologyKnowledge> {
                 learning_resources: generate_learning_resources(&tech_name),
                 skill_level_required: assess_skill_level(&tech_name),
                 team_expertise_level: expertise_level,
-                adoption_trend: assess_adoption_trend(&tech_name, frequency),
+                adoption_trend: assess_adoption_trend(&tech_name, *frequency),
                 related_technologies: find_related_technologies(&tech_name, &tech_frequency),
             });
         }
@@ -913,7 +957,7 @@ async fn discover_patterns() -> Vec<KnowledgePattern> {
         }).expect("Failed to execute patterns query");
 
         for row in rows {
-            if let Ok((key, summary, description, comment, status, resolution, project)) = row {
+            if let Ok((key, summary, description, comment, _status, resolution, project)) = row {
                 let full_text = format!("{} {} {} {} {}", summary, description, comment, resolution, project);
                 let detected_patterns = detect_solution_patterns(&full_text, &key, &summary);
                 
@@ -1000,7 +1044,7 @@ async fn generate_learning_materials() -> Vec<LearningMaterial> {
 
         for row in rows {
             if let Ok((key, summary, description, comment, status, resolution, project, labels)) = row {
-                let content_type = determine_content_type(&summary, &description, &comment, &status, &labels);
+                let _content_type = determine_content_type(&summary, &description, &comment, &status, &labels);
                 let topic = extract_topic(&summary, &description, &project);
                 
                 content_groups.entry(topic).or_default().push(format!(
@@ -1048,7 +1092,7 @@ async fn generate_learning_materials() -> Vec<LearningMaterial> {
     materials
 }
 
-async fn detect_knowledge_gaps(concepts: &[KnowledgeConcept], technologies: &[TechnologyKnowledge]) -> Vec<KnowledgeGap> {
+async fn detect_knowledge_gaps(_concepts: &[KnowledgeConcept], technologies: &[TechnologyKnowledge]) -> Vec<KnowledgeGap> {
     log_step("🔍", "Detecting knowledge gaps and learning opportunities...");
     
     let mut gaps = Vec::new();
@@ -1078,14 +1122,14 @@ async fn detect_knowledge_gaps(concepts: &[KnowledgeConcept], technologies: &[Te
     gaps
 }
 
-async fn analyze_team_expertise(concepts: &[KnowledgeConcept], technologies: &[TechnologyKnowledge]) -> HashMap<String, Vec<ExpertiseArea>> {
+async fn analyze_team_expertise(_concepts: &[KnowledgeConcept], _technologies: &[TechnologyKnowledge]) -> HashMap<String, Vec<ExpertiseArea>> {
     log_step("👥", "Analyzing team expertise distribution...");
     
     // Implementation would analyze who works on what issues to build expertise map
     HashMap::new()
 }
 
-async fn build_semantic_graph(concepts: &[KnowledgeConcept], patterns: &[KnowledgePattern]) -> KnowledgeSemanticGraph {
+async fn build_semantic_graph(_concepts: &[KnowledgeConcept], _patterns: &[KnowledgePattern]) -> KnowledgeSemanticGraph {
     log_step("🕸️", "Building semantic knowledge graph...");
     
     KnowledgeSemanticGraph {
@@ -1099,7 +1143,7 @@ async fn build_semantic_graph(concepts: &[KnowledgeConcept], patterns: &[Knowled
 async fn generate_knowledge_insights(
     concepts: &[KnowledgeConcept], 
     gaps: &[KnowledgeGap], 
-    expertise: &HashMap<String, Vec<ExpertiseArea>>
+    _expertise: &HashMap<String, Vec<ExpertiseArea>>
 ) -> Vec<KnowledgeInsight> {
     log_step("💡", "Generating knowledge insights...");
     
@@ -1158,46 +1202,71 @@ async fn generate_knowledge_insights(
 fn detect_solution_patterns(text: &str, key: &str, summary: &str) -> Vec<String> {
     let mut patterns = Vec::new();
     
-    // Configuration patterns
-    if text.to_lowercase().contains("config") || text.to_lowercase().contains("settings") {
+    // Combine all context for comprehensive pattern detection
+    let combined_context = format!("{} {} {}", key, summary, text).to_lowercase();
+    
+    // Use key prefix to determine issue type and likely patterns
+    let key_patterns = if key.starts_with("BUG") || key.contains("bug") {
+        vec![
+            ("Bug Investigation", vec!["debug", "trace", "log", "reproduce"]),
+            ("Root Cause Analysis", vec!["cause", "investigation", "analysis"]),
+            ("Error Handling", vec!["error", "exception", "failure"]),
+        ]
+    } else if key.starts_with("FEAT") || key.contains("feature") {
+        vec![
+            ("Feature Development", vec!["implement", "add", "create", "new"]),
+            ("Architecture Design", vec!["design", "structure", "pattern"]),
+            ("Integration", vec!["integrate", "connect", "api"]),
+        ]
+    } else if key.starts_with("PERF") || key.contains("performance") {
+        vec![
+            ("Performance Optimization", vec!["optimize", "performance", "speed", "memory"]),
+            ("Profiling", vec!["profile", "benchmark", "measure"]),
+        ]
+    } else {
+        vec![]
+    };
+    
+    // Check key-based patterns first
+    for (pattern_name, keywords) in key_patterns {
+        if keywords.iter().any(|kw| combined_context.contains(kw)) {
+            patterns.push(pattern_name.to_string());
+        }
+    }
+    
+    // Check summary for solution indicators
+    let summary_lower = summary.to_lowercase();
+    if summary_lower.contains("fix") || summary_lower.contains("resolve") || summary_lower.contains("solve") {
+        patterns.push("Problem Resolution".to_string());
+    }
+    if summary_lower.contains("improve") || summary_lower.contains("enhance") || summary_lower.contains("optimize") {
+        patterns.push("Enhancement Strategy".to_string());
+    }
+    if summary_lower.contains("refactor") || summary_lower.contains("restructure") {
+        patterns.push("Code Refactoring".to_string());
+    }
+    
+    // Standard content-based patterns
+    if combined_context.contains("config") || combined_context.contains("settings") {
         patterns.push("Configuration Management".to_string());
     }
-    
-    // API patterns
-    if text.to_lowercase().contains("api") || text.to_lowercase().contains("endpoint") {
+    if combined_context.contains("api") || combined_context.contains("endpoint") {
         patterns.push("API Integration".to_string());
     }
-    
-    // Database patterns
-    if text.to_lowercase().contains("database") || text.to_lowercase().contains("query") {
+    if combined_context.contains("database") || combined_context.contains("query") {
         patterns.push("Database Operations".to_string());
     }
-    
-    // Error handling patterns
-    if text.to_lowercase().contains("error") || text.to_lowercase().contains("exception") {
-        patterns.push("Error Handling".to_string());
+    if combined_context.contains("deploy") || combined_context.contains("release") {
+        patterns.push("Deployment Process".to_string());
     }
-    
-    // Performance patterns
-    if text.to_lowercase().contains("performance") || text.to_lowercase().contains("optimization") {
-        patterns.push("Performance Optimization".to_string());
+    if combined_context.contains("test") || combined_context.contains("testing") {
+        patterns.push("Testing Strategy".to_string());
     }
-    
-    // Security patterns
-    if text.to_lowercase().contains("security") || text.to_lowercase().contains("authentication") {
+    if combined_context.contains("security") || combined_context.contains("authentication") {
         patterns.push("Security Implementation".to_string());
     }
     
-    // Testing patterns
-    if text.to_lowercase().contains("test") || text.to_lowercase().contains("testing") {
-        patterns.push("Testing Strategy".to_string());
-    }
-    
-    // Deployment patterns
-    if text.to_lowercase().contains("deploy") || text.to_lowercase().contains("release") {
-        patterns.push("Deployment Process".to_string());
-    }
-    
+    patterns.dedup();
     patterns
 }
 
@@ -1433,14 +1502,30 @@ fn format_topic_title(topic: &str) -> String {
 
 fn determine_material_type(topic: &str, contents: &[String]) -> ContentType {
     let combined = contents.join(" ").to_lowercase();
+    let topic_lower = topic.to_lowercase();
     
-    if combined.contains("tutorial") || combined.contains("guide") {
+    // Use topic context to inform material type detection
+    if topic_lower.contains("tutorial") || topic_lower.contains("how-to") || topic_lower.contains("guide") {
+        return ContentType::Tutorial;
+    }
+    if topic_lower.contains("troubleshoot") || topic_lower.contains("bug") || topic_lower.contains("error") {
+        return ContentType::Troubleshooting;
+    }
+    if topic_lower.contains("architecture") || topic_lower.contains("design") || topic_lower.contains("pattern") {
+        return ContentType::Architecture;
+    }
+    if topic_lower.contains("best practice") || topic_lower.contains("convention") {
+        return ContentType::BestPractice;
+    }
+    
+    // Fall back to content-based detection
+    if combined.contains("step by step") || combined.contains("tutorial") || combined.contains("guide") {
         ContentType::Tutorial
-    } else if combined.contains("troubleshoot") || combined.contains("error") {
+    } else if combined.contains("troubleshoot") || combined.contains("error") || combined.contains("fix") || combined.contains("resolve") {
         ContentType::Troubleshooting
-    } else if combined.contains("best practice") {
+    } else if combined.contains("best practice") || combined.contains("recommend") || combined.contains("should") {
         ContentType::BestPractice
-    } else if combined.contains("architecture") || combined.contains("design") {
+    } else if combined.contains("architecture") || combined.contains("design") || combined.contains("pattern") {
         ContentType::Architecture
     } else {
         ContentType::LessonsLearned
@@ -1458,11 +1543,32 @@ fn identify_content_prerequisites(topic: &str) -> Vec<String> {
 }
 
 fn calculate_content_quality(topic: &str, contents: &[String]) -> f64 {
-    let base_quality = 0.6;
-    let content_length_bonus = (contents.len() as f64 / 10.0).min(0.3);
+    let topic_lower = topic.to_lowercase();
+    
+    // Base quality varies by topic complexity and importance
+    let base_quality = if topic_lower.contains("security") || topic_lower.contains("critical") {
+        0.8 // Security topics need higher quality bar
+    } else if topic_lower.contains("architecture") || topic_lower.contains("design") {
+        0.7 // Architecture topics are important
+    } else if topic_lower.contains("bug") || topic_lower.contains("error") {
+        0.6 // Bug fixes are contextual
+    } else if topic_lower.contains("tutorial") || topic_lower.contains("guide") {
+        0.75 // Tutorials should be comprehensive
+    } else {
+        0.6 // Default quality expectation
+    };
+    
+    let content_length_bonus = (contents.len() as f64 / 10.0).min(0.25);
     let detail_bonus = contents.iter()
         .map(|c| if c.len() > 200 { 0.02 } else { 0.0 })
-        .sum::<f64>().min(0.1);
+        .sum::<f64>().min(0.15);
     
-    (base_quality + content_length_bonus + detail_bonus).min(1.0)
+    // Quality penalties for certain topic types
+    let topic_penalty = if topic_lower.contains("quick fix") || topic_lower.contains("workaround") {
+        -0.1 // Quick fixes might be lower quality
+    } else {
+        0.0
+    };
+    
+    (base_quality + content_length_bonus + detail_bonus + topic_penalty).max(0.1).min(1.0)
 }

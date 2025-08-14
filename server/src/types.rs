@@ -108,7 +108,7 @@ pub struct IssueType {
     pub id: String,
     pub description: Option<String>,
     pub subtask: Option<bool>,
-    pub hierarchyLevel: Option<i32>,
+    pub hierarchy_level: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

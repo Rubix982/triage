@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use std::collections::HashMap;
 use crate::db_utils::with_connection;
 use crate::utils::{log_step, log_success};
 

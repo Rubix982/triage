@@ -65,6 +65,7 @@ impl GoogleAuthManager {
             prompt: "consent".to_string(),
         };
 
+        let string_state = &std::string::String::from(state);
         let query_params = vec![
             ("client_id", &params.client_id),
             ("redirect_uri", &params.redirect_uri),
@@ -72,7 +73,7 @@ impl GoogleAuthManager {
             ("response_type", &params.response_type),
             ("access_type", &params.access_type),
             ("prompt", &params.prompt),
-            ("state", state),
+            ("state", string_state),
         ];
 
         let query_string = query_params
@@ -91,8 +92,10 @@ impl GoogleAuthManager {
         params.insert("client_id", &self.config.client_id);
         params.insert("client_secret", &self.config.client_secret);
         params.insert("redirect_uri", &self.config.redirect_uri);
-        params.insert("grant_type", "authorization_code");
-        params.insert("code", authorization_code);
+        let grant_type = "authorization_code".to_string();
+        params.insert("grant_type", &grant_type);
+        let code = authorization_code.to_string();
+        params.insert("code", &code);
 
         let response = self.client
             .post(token_url)
@@ -129,8 +132,10 @@ impl GoogleAuthManager {
         let mut params = HashMap::new();
         params.insert("client_id", &self.config.client_id);
         params.insert("client_secret", &self.config.client_secret);
-        params.insert("refresh_token", refresh_token);
-        params.insert("grant_type", "refresh_token");
+        let refresh_token_str = refresh_token.to_string();
+        params.insert("refresh_token", &refresh_token_str);
+        let grant_type = "refresh_token".to_string();
+        params.insert("grant_type", &grant_type);
 
         let response = self.client
             .post(token_url)

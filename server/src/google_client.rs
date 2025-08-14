@@ -1,9 +1,8 @@
 use crate::google_auth::GoogleAuthManager;
-use crate::types::{PlatformType, ExtractedLink};
+use crate::types::PlatformType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use reqwest::Client;
-use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GoogleDocumentContent {
@@ -352,7 +351,7 @@ impl GoogleApiClient {
         Ok(text)
     }
 
-    async fn extract_suggestions(&self, document_id: &str, access_token: &str) -> Result<Vec<GoogleSuggestion>, Box<dyn std::error::Error>> {
+    async fn extract_suggestions(&self, _document_id: &str, _access_token: &str) -> Result<Vec<GoogleSuggestion>, Box<dyn std::error::Error>> {
         // Google Docs API doesn't directly expose suggestions in a simple way
         // This would require using the Drive Activity API or other specialized endpoints
         // For now, return empty vector - can be enhanced later
@@ -494,7 +493,7 @@ impl GoogleApiClient {
     fn extract_slide_content(&self, slide_data: &Value) -> (String, String, String) {
         let mut title = String::new();
         let mut content = String::new();
-        let mut notes = String::new();
+        let notes = String::new();
 
         // Extract text from slide elements
         if let Some(page_elements) = slide_data["pageElements"].as_array() {
@@ -517,8 +516,8 @@ impl GoogleApiClient {
 
         // Extract speaker notes
         if let Some(slide_properties) = slide_data["slideProperties"].as_object() {
-            if let Some(notes_page) = slide_properties["notesPage"].as_object() {
-                // Similar extraction for notes...
+            if let Some(_notes_page) = slide_properties["notesPage"].as_object() {
+                // TODO: Similar extraction for notes...
             }
         }
 

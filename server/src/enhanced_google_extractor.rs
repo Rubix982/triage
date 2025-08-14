@@ -2,7 +2,6 @@ use crate::google_client::GoogleApiClient;
 use crate::people_graph::{IdentityResolver, DetailedInteraction, InteractionType};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use std::collections::HashMap;
 
 // ================================
 // ENHANCED GOOGLE COLLABORATION DATA
@@ -377,10 +376,10 @@ impl EnhancedGoogleExtractor {
 
         // Resolve primary author identity
         let primary_author = self.identity_resolver.resolve_identity(
-            Some(&doc_content.author.email),
-            &doc_content.author.display_name,
+            None, // No email available from basic doc content
+            doc_content.author.as_ref().unwrap_or(&"Unknown Author".to_string()),
             "google",
-            &doc_content.author.user_id
+            doc_content.author.as_ref().unwrap_or(&"unknown".to_string())
         ).await?;
 
         let collaboration = GoogleDocumentCollaboration {
@@ -400,7 +399,7 @@ impl EnhancedGoogleExtractor {
         Ok(collaboration)
     }
 
-    async fn extract_document_comments(&self, document_id: &str) -> Result<Vec<GoogleDocComment>, Box<dyn std::error::Error>> {
+    async fn extract_document_comments(&self, _document_id: &str) -> Result<Vec<GoogleDocComment>, Box<dyn std::error::Error>> {
         // This would use Google Docs API to fetch comments
         // For now, returning placeholder structure
         
@@ -413,14 +412,14 @@ impl EnhancedGoogleExtractor {
         Ok(Vec::new()) // Placeholder
     }
 
-    async fn extract_document_suggestions(&self, document_id: &str) -> Result<Vec<GoogleSuggestion>, Box<dyn std::error::Error>> {
+    async fn extract_document_suggestions(&self, _document_id: &str) -> Result<Vec<GoogleSuggestion>, Box<dyn std::error::Error>> {
         // This would extract suggestion mode changes
         // Google Docs API provides suggestions in the document structure
         
         Ok(Vec::new()) // Placeholder
     }
 
-    async fn extract_document_revisions(&self, document_id: &str) -> Result<Vec<GoogleRevision>, Box<dyn std::error::Error>> {
+    async fn extract_document_revisions(&self, _document_id: &str) -> Result<Vec<GoogleRevision>, Box<dyn std::error::Error>> {
         // This would use Google Drive API revisions endpoint
         // 1. Fetch all revisions for the document
         // 2. Compare revisions to identify changes
@@ -430,7 +429,7 @@ impl EnhancedGoogleExtractor {
         Ok(Vec::new()) // Placeholder
     }
 
-    async fn extract_sharing_history(&self, document_id: &str) -> Result<Vec<SharingEvent>, Box<dyn std::error::Error>> {
+    async fn extract_sharing_history(&self, _document_id: &str) -> Result<Vec<SharingEvent>, Box<dyn std::error::Error>> {
         // This would use Google Drive API permissions endpoint
         // to track sharing events over time
         

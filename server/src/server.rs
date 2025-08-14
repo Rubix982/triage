@@ -9,7 +9,7 @@ use crate::sync_status::get_sync_status;
 use crate::user_notes::{create_note, get_user_notes, create_saved_view, get_saved_views, update_view_usage, toggle_view_favorite, CreateNoteRequest, CreateViewRequest};
 use crate::google_auth::{GoogleAuthManager, GoogleOAuthConfig};
 use crate::slack_auth::{SlackAuthManager, SlackOAuthConfig};
-use crate::content_extractor::{ContentExtractionService, create_extraction_jobs_from_links, JobPriority};
+use crate::content_extractor::JobPriority;
 use axum::{
     extract::{Query, Path},
     http::StatusCode,
@@ -169,8 +169,8 @@ async fn get_knowledge_base() -> Result<Json<serde_json::Value>, StatusCode> {
 async fn semantic_search_endpoint(
     Query(params): Query<SearchQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let search_types = params.types
-        .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+    let _search_types = params.types
+        .map(|t| t.split(',').map(|s| s.trim().to_string()).collect::<Vec<String>>())
         .unwrap_or_default();
     
     let query = SemanticSearchQuery {

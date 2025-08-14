@@ -1,5 +1,4 @@
 use crate::db_utils::with_connection;
-use crate::knowledge_engine::{KnowledgeConcept, TechnologyKnowledge};
 use crate::types::Issue;
 use crate::utils::{log_step, log_success};
 use serde::{Deserialize, Serialize};
@@ -155,14 +154,15 @@ pub async fn semantic_search(query: SemanticSearchQuery) -> SemanticSearchRespon
     
     let search_time_ms = start_time.elapsed().as_millis() as u64;
     
-    log_success(&format!("Found {} results in {}ms", results.len(), search_time_ms));
+    let total_results = results.len();
+    log_success(&format!("Found {} results in {}ms", total_results, search_time_ms));
     
     SemanticSearchResponse {
         results,
         clusters,
         recommendations,
         query_analysis,
-        total_results: results.len(),
+        total_results,
         search_time_ms,
     }
 }
@@ -284,7 +284,7 @@ fn assess_query_difficulty(query: &str, technologies: &[String]) -> String {
     }
 }
 
-async fn perform_base_search(query: &SemanticSearchQuery, analysis: &QueryAnalysis) -> Vec<SearchResult> {
+async fn perform_base_search(query: &SemanticSearchQuery, _analysis: &QueryAnalysis) -> Vec<SearchResult> {
     let mut results = Vec::new();
     
     with_connection("semantic_search", |conn| {

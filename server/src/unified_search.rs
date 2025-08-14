@@ -1,11 +1,10 @@
-use crate::content_storage::{StoredContent, ContentType, SearchIndex, SEARCH_CONTENT_FULL_TEXT, GET_RELATED_CONTENT, GET_CONTENT_BY_TICKET};
+use crate::content_storage::{SEARCH_CONTENT_FULL_TEXT, GET_RELATED_CONTENT};
 use crate::db_utils::with_connection;
-use crate::semantic_search::{SearchResult, SearchResultType, SearchContext, RelatedItem};
+use crate::semantic_search::RelatedItem;
 use crate::knowledge_engine::{KnowledgeConcept, TechnologyKnowledge};
 use crate::user_notes::{UserNote, SavedView};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use uuid::Uuid;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UnifiedSearchRequest {
@@ -218,7 +217,7 @@ impl UnifiedSearchEngine {
             let search_pattern = format!("%{}%", request.query);
             let limit = request.max_results.unwrap_or(50);
             
-            let mut stmt = conn.prepare(SEARCH_CONTENT_FULL_TEXT)?;
+            let mut stmt = conn.prepare(SEARCH_CONTENT_FULL_TEXT).expect("Failed to prepare search statement");
             let rows = stmt.query_map([&search_pattern, &limit.to_string()], |row| {
                 Ok((
                     row.get::<_, String>(0)?, // id
@@ -232,11 +231,11 @@ impl UnifiedSearchEngine {
                     row.get::<_, String>(8)?, // last_updated_at
                     row.get::<_, String>(9)?, // metadata (JSON)
                 ))
-            })?;
+            }).expect("Failed to execute search query");
 
             for row_result in rows {
-                if let Ok((id, content_type, source_url, platform, title, body_text, author, created_at, last_updated_at, metadata)) = row_result {
-                    let content_type = self.parse_content_type(&content_type);
+                if let Ok((id, content_type_str, source_url, platform, title, body_text, author, created_at, last_updated_at, metadata)) = row_result {
+                    let content_type = self.parse_content_type(&content_type_str);
                     let metadata_json: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
                     
                     let result = EnhancedSearchResult {
@@ -244,8 +243,8 @@ impl UnifiedSearchEngine {
                         title: title.clone(),
                         content: body_text.clone(),
                         content_preview: self.create_preview(&body_text, &request.query),
-                        result_type: content_type,
-                        platform,
+                        result_type: content_type.clone(),
+                        platform: platform.clone(),
                         similarity_score: self.calculate_similarity(&title, &body_text, &request.query),
                         relevance_score: self.calculate_relevance(&title, &body_text, &request.query, &metadata_json),
                         context: EnhancedSearchContext {
@@ -279,8 +278,7 @@ impl UnifiedSearchEngine {
                 }
             }
             
-            Ok::<(), rusqlite::Error>(())
-        })?;
+        });
 
         Ok(results)
     }
@@ -300,7 +298,7 @@ impl UnifiedSearchEngine {
                 LIMIT ?
             "#;
             
-            let mut stmt = conn.prepare(query)?;
+            let mut stmt = conn.prepare(query).expect("Failed to prepare search query");
             let limit = request.max_results.unwrap_or(25);
             let rows = stmt.query_map([&search_pattern, &search_pattern, &limit.to_string()], |row| {
                 Ok((
@@ -319,10 +317,10 @@ impl UnifiedSearchEngine {
                     row.get::<_, Option<String>>(12)?, // description
                     row.get::<_, Option<String>>(13)?, // extracted_links
                 ))
-            })?;
+            }).expect("Failed to execute search query");
 
             for row_result in rows {
-                if let Ok((id, key, summary, status, issue_type, priority, assignee, reporter, created, updated, project_name, project_key, description, extracted_links)) = row_result {
+                if let Ok((id, key, summary, status, issue_type_opt, priority, _assignee, reporter, created, updated, project_name, _project_key, description, _extracted_links)) = row_result {
                     let title = summary.unwrap_or_else(|| format!("{} - {}", key, status));
                     let content = description.unwrap_or_default();
                     
@@ -338,8 +336,8 @@ impl UnifiedSearchEngine {
                         context: EnhancedSearchContext {
                             project: project_name.unwrap_or_default(),
                             platform: "jira".to_string(),
-                            content_type: issue_type.unwrap_or("Issue".to_string()),
-                            category: priority.unwrap_or("Medium".to_string()),
+                            content_type: issue_type_opt.clone().unwrap_or("Issue".to_string()),
+                            category: priority.clone().unwrap_or("Medium".to_string()),
                             source_url: format!("https://jira.example.com/browse/{}", key), // TODO: Use actual domain
                             parent_ticket: None,
                             knowledge_impact_score: 5.0, // TODO: Calculate based on comments, links, etc.
@@ -347,7 +345,7 @@ impl UnifiedSearchEngine {
                             related_concepts: Vec::new(),
                         },
                         related_items: Vec::new(),
-                        tags: vec![status.clone(), issue_type.unwrap_or_default(), priority.unwrap_or_default()],
+                        tags: vec![status.clone(), issue_type_opt.unwrap_or_default(), priority.unwrap_or_default()],
                         concepts: Vec::new(), // TODO: Extract from knowledge engine
                         technologies: Vec::new(), // TODO: Extract from knowledge engine
                         created_date: created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
@@ -373,8 +371,7 @@ impl UnifiedSearchEngine {
                 }
             }
             
-            Ok::<(), rusqlite::Error>(())
-        })?;
+        });
 
         Ok(results)
     }
@@ -395,7 +392,7 @@ impl UnifiedSearchEngine {
         let mut related_items = Vec::new();
         
         with_connection("find_related_content", |conn| {
-            let mut stmt = conn.prepare(GET_RELATED_CONTENT)?;
+            let mut stmt = conn.prepare(GET_RELATED_CONTENT).expect("Failed to prepare related content query");
             let rows = stmt.query_map([content_id, "10"], |row| {
                 Ok((
                     row.get::<_, String>(0)?, // id
@@ -403,7 +400,7 @@ impl UnifiedSearchEngine {
                     row.get::<_, String>(2)?, // relationship_type
                     row.get::<_, f64>(3)?,    // strength
                 ))
-            })?;
+            }).expect("Failed to execute search query");
 
             for row_result in rows {
                 if let Ok((id, title, relationship_type, strength)) = row_result {
@@ -416,8 +413,7 @@ impl UnifiedSearchEngine {
                 }
             }
             
-            Ok::<(), rusqlite::Error>(())
-        })?;
+        });
 
         Ok(related_items)
     }

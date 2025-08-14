@@ -1,7 +1,7 @@
-use crate::google_auth::{GoogleAuthManager, GoogleOAuthConfig};
-use crate::google_client::{GoogleApiClient, GoogleContentType};
-use crate::slack_auth::{SlackAuthManager, SlackOAuthConfig};
-use crate::slack_client::{SlackApiClient, SlackConversationContent};
+use crate::google_auth::GoogleAuthManager;
+use crate::google_client::GoogleApiClient;
+use crate::slack_auth::SlackAuthManager;
+use crate::slack_client::SlackApiClient;
 use crate::types::{ExtractedLink, PlatformType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ pub enum JobPriority {
     Low,     // Bulk historical processing
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum JobStatus {
     Pending,
     Processing,

@@ -1,8 +1,8 @@
 use crate::db_utils::with_connection;
 use crate::utils::{log_step, log_success};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+// HashMap usage removed
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TeamVelocity {
@@ -392,7 +392,7 @@ pub async fn get_time_series_data(metric: &str, period: &str) -> Vec<TrendAnalys
                 FROM monthly_velocity
                 ORDER BY period
             "#,
-            _ => return data, // Unknown metric/period combination
+            _ => "SELECT '' as period, '' as metric, 0.0 as value WHERE 0=1", // Unknown metric/period combination - empty result
         };
 
         let mut stmt = conn.prepare(query).expect("Failed to prepare time series query");

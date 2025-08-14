@@ -1,6 +1,5 @@
 use crate::db_utils::with_connection;
 use crate::utils::{log_step, log_success};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -183,7 +182,7 @@ async fn analyze_velocity_patterns() -> VelocityInsights {
             ))
         }).expect("Failed to execute velocity analysis query");
 
-        if let Some(Ok((avg_vel, mon, tue, wed, thu, fri, stddev, peak))) = rows.next() {
+        if let Some(Ok((avg_vel, mon, tue, wed, thu, fri, stddev, _peak))) = rows.next() {
             current_velocity = avg_vel;
             
             // Calculate seasonal patterns
@@ -422,7 +421,7 @@ async fn generate_predictions() -> Vec<PredictiveForecast> {
         }).expect("Failed to execute prediction query");
 
         if let Some(Ok((avg_velocity, data_points))) = rows.next() {
-            let confidence = (data_points as f64 / 6.0).min(1.0) * 0.8; // 80% max confidence
+            let _confidence = (data_points as f64 / 6.0).min(1.0) * 0.8; // 80% max confidence
             let trend_strength = 0.7; // Mock trend strength
             
             forecasts.push(PredictiveForecast {

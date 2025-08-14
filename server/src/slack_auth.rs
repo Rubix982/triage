@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use reqwest::Client;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SlackOAuthConfig {
@@ -122,7 +122,8 @@ impl SlackAuthManager {
         let mut params = HashMap::new();
         params.insert("client_id", &self.config.client_id);
         params.insert("client_secret", &self.config.client_secret);
-        params.insert("code", authorization_code);
+        let code = authorization_code.to_string();
+        params.insert("code", &code);
         params.insert("redirect_uri", &self.config.redirect_uri);
 
         let response = self.client

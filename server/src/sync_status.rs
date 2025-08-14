@@ -1,8 +1,7 @@
 use crate::db_utils::with_connection;
 use crate::utils::{log_step, log_success};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SyncStatus {

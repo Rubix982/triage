@@ -2,6 +2,7 @@ use axum::{
     extract::{Path, Query},
     http::StatusCode,
     response::Json,
+    routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,8 @@ use std::collections::HashMap;
 
 use crate::people_integration::{
     get_person_network_insights, get_collaboration_recommendations,
-    PersonNetworkProfile, CollaborationRecommendation, PeopleIntegrationSystem
+    PersonNetworkProfile, CollaborationRecommendation, PeopleIntegrationSystem,
+    PeopleNetworkInsights
 };
 
 // ================================
@@ -55,32 +57,24 @@ pub struct CollaborationRecommendationsResponse {
     pub error: Option<String>,
 }
 
-#[derive(Serialize, Debug, Clone)]
-pub struct PeopleNetworkInsights {
-    pub platform: String,
-    pub content_id: String,
-    pub participants: Vec<String>,
-    pub collaboration_patterns: usize,
-    pub knowledge_transfers: usize,
-    pub engagement_score: f64,
-}
 
 // ================================
 // ROUTE HANDLERS
 // ================================
 
 /// Analyze content for people insights
-pub async fn analyze_content(
+async fn analyze_content(
     Json(request): Json<ContentAnalysisRequest>,
-) -> Result<Json<PeopleInsightsResponse>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     let mut integration_system = PeopleIntegrationSystem::new();
     
     if let Err(e) = integration_system.initialize().await {
-        return Ok(Json(PeopleInsightsResponse {
+        let response = PeopleInsightsResponse {
             success: false,
             insights: None,
             error: Some(format!("Failed to initialize system: {}", e)),
-        }));
+        };
+        return Ok(Json(serde_json::to_value(response).unwrap()));
     }
 
     let result = match request.platform.as_str() {
@@ -120,63 +114,77 @@ pub async fn analyze_content(
                 engagement_score: integration_insights.engagement_score,
             };
             
-            Ok(Json(PeopleInsightsResponse {
+            let response = PeopleInsightsResponse {
                 success: true,
                 insights: Some(insights),
                 error: None,
-            }))
+            };
+            Ok(Json(serde_json::to_value(response).unwrap()))
         },
         Err(e) => {
-            Ok(Json(PeopleInsightsResponse {
+            let response = PeopleInsightsResponse {
                 success: false,
                 insights: None,
                 error: Some(e.to_string()),
-            }))
+            };
+            Ok(Json(serde_json::to_value(response).unwrap()))
         }
     }
 }
 
 /// Get comprehensive profile for a person
-pub async fn get_person_profile(
+async fn get_person_profile(
     Path(person_id): Path<String>,
-) -> Result<Json<PersonProfileResponse>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     match get_person_network_insights(&person_id).await {
-        Ok(profile) => Ok(Json(PersonProfileResponse {
-            success: true,
-            profile: Some(profile),
-            error: None,
-        })),
-        Err(e) => Ok(Json(PersonProfileResponse {
-            success: false,
-            profile: None,
-            error: Some(e.to_string()),
-        })),
+        Ok(profile) => {
+            let response = PersonProfileResponse {
+                success: true,
+                profile: Some(profile),
+                error: None,
+            };
+            Ok(Json(serde_json::to_value(response).unwrap()))
+        },
+        Err(e) => {
+            let response = PersonProfileResponse {
+                success: false,
+                profile: None,
+                error: Some(e.to_string()),
+            };
+            Ok(Json(serde_json::to_value(response).unwrap()))
+        },
     }
 }
 
 /// Get collaboration recommendations for a person
-pub async fn get_person_recommendations(
+async fn get_person_recommendations(
     Path(person_id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
-) -> Result<Json<CollaborationRecommendationsResponse>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     let topic = params.get("topic").unwrap_or(&"".to_string()).clone();
     
     match get_collaboration_recommendations(&person_id, &topic).await {
-        Ok(recommendations) => Ok(Json(CollaborationRecommendationsResponse {
-            success: true,
-            recommendations,
-            error: None,
-        })),
-        Err(e) => Ok(Json(CollaborationRecommendationsResponse {
-            success: false,
-            recommendations: Vec::new(),
-            error: Some(e.to_string()),
-        })),
+        Ok(recommendations) => {
+            let response = CollaborationRecommendationsResponse {
+                success: true,
+                recommendations,
+                error: None,
+            };
+            Ok(Json(serde_json::to_value(response).unwrap()))
+        },
+        Err(e) => {
+            let response = CollaborationRecommendationsResponse {
+                success: false,
+                recommendations: Vec::new(),
+                error: Some(e.to_string()),
+            };
+            Ok(Json(serde_json::to_value(response).unwrap()))
+        },
     }
 }
 
 /// Get network statistics and overview
-pub async fn get_network_overview() -> Result<Json<NetworkOverviewResponse>, StatusCode> {
+async fn get_network_overview() -> Result<Json<serde_json::Value>, StatusCode> {
     // This would query the database for comprehensive network statistics
     let overview = NetworkOverviewResponse {
         total_people: 0,
@@ -186,7 +194,7 @@ pub async fn get_network_overview() -> Result<Json<NetworkOverviewResponse>, Sta
         recent_knowledge_transfers: Vec::new(),
     };
 
-    Ok(Json(overview))
+    Ok(Json(serde_json::to_value(overview).unwrap()))
 }
 
 #[derive(Serialize)]
@@ -221,8 +229,8 @@ pub struct RecentTransfer {
 
 pub fn create_people_routes() -> Router {
     Router::new()
-        .route("/people/analyze", axum::routing::post(analyze_content))
-        .route("/people/profile/:person_id", axum::routing::get(get_person_profile))
-        .route("/people/recommendations/:person_id", axum::routing::get(get_person_recommendations))
-        .route("/people/overview", axum::routing::get(get_network_overview))
+        .route("/people/analyze", post(analyze_content))
+        .route("/people/profile/:person_id", get(get_person_profile))
+        .route("/people/recommendations/:person_id", get(get_person_recommendations))
+        .route("/people/overview", get(get_network_overview))
 }

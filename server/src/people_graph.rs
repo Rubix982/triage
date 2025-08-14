@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use crate::db_utils::with_connection;
-use crate::utils::{log_step, log_success, log_error};
+use crate::utils::{log_step, log_success};
 
 // ================================
 // PEOPLE & IDENTITY MANAGEMENT
@@ -242,17 +242,15 @@ impl IdentityResolver {
         let mut person_id = None;
         
         with_connection("find_by_email", |conn| {
-            let mut stmt = conn.prepare("SELECT id FROM people WHERE email = ?1")?;
+            let mut stmt = conn.prepare("SELECT id FROM people WHERE email = ?1").expect("Failed to prepare query");
             let mut rows = stmt.query_map([email], |row| {
                 Ok(row.get::<_, String>(0)?)
-            })?;
+            }).expect("Failed to execute query");
             
             if let Some(row) = rows.next() {
-                person_id = Some(row?);
+                person_id = Some(row.expect("Failed to get row data"));
             }
-            
-            Ok(())
-        })?;
+        });
         
         Ok(person_id)
     }
@@ -419,22 +417,20 @@ impl IdentityResolver {
                     expertise_areas, activity_metrics, collaboration_network,
                     first_seen, last_active
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-            ")?;
+            ").expect("Failed to prepare person insert statement");
             
             stmt.execute([
                 &person.id,
                 &person.email,
-                &serde_json::to_string(&person.display_names)?,
-                &serde_json::to_string(&person.platform_identities)?,
-                &serde_json::to_string(&person.expertise_areas)?,
-                &serde_json::to_string(&person.activity_metrics)?,
-                &serde_json::to_string(&person.collaboration_network)?,
+                &serde_json::to_string(&person.display_names).expect("Failed to serialize display_names"),
+                &serde_json::to_string(&person.platform_identities).expect("Failed to serialize platform_identities"),
+                &serde_json::to_string(&person.expertise_areas).expect("Failed to serialize expertise_areas"),
+                &serde_json::to_string(&person.activity_metrics).expect("Failed to serialize activity_metrics"),
+                &serde_json::to_string(&person.collaboration_network).expect("Failed to serialize collaboration_network"),
                 &person.first_seen.to_rfc3339(),
                 &person.last_active.to_rfc3339(),
-            ])?;
-            
-            Ok(())
-        })?;
+            ]).expect("Failed to insert person");
+        });
         
         log_success(&format!("Created new person: {} ({})", display_name, person_id));
         Ok(person_id)
@@ -465,13 +461,9 @@ pub async fn initialize_people_tables() {
     
     with_connection("create_people_tables", |conn| {
         // Create tables
-        conn.execute_batch(CREATE_PEOPLE_TABLE)?;
-        conn.execute_batch(CREATE_INTERACTIONS_TABLE)?;
-        conn.execute_batch(CREATE_PEOPLE_INDEXES)?;
-        
-        Ok(())
-    }).unwrap_or_else(|e| {
-        log_error(&format!("Failed to create people tables: {}", e));
+        conn.execute_batch(CREATE_PEOPLE_TABLE).expect("Failed to create people table");
+        conn.execute_batch(CREATE_INTERACTIONS_TABLE).expect("Failed to create interactions table");
+        conn.execute_batch(CREATE_PEOPLE_INDEXES).expect("Failed to create people indexes");
     });
     
     log_success("People graph tables ready.");

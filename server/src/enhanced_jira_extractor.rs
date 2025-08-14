@@ -1,7 +1,7 @@
 use crate::auth::{authenticate, get_domain};
-use crate::people_graph::{IdentityResolver, DetailedInteraction, InteractionType, InteractionContext, ImpactIndicators};
+use crate::people_graph::IdentityResolver;
 use crate::types::{Issue, IssueFields, IssueStatus, IssueType, IssuePriority, ExtractedLink};
-use crate::utils::{log_step, log_success, log_error};
+use crate::utils::{log_step, log_success};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -67,7 +67,7 @@ pub struct ParticipantSummary {
     pub influence_score: f64, // calculated based on their contributions
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum ParticipantRole {
     Reporter,
     Assignee,
@@ -316,13 +316,13 @@ impl EnhancedJiraExtractor {
                         id: p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
                     }
                 }),
-                assignee: json["fields"]["assignee"].clone(),
-                reporter: json["fields"]["reporter"].clone(),
+                assignee: if json["fields"]["assignee"].is_null() { None } else { Some(json["fields"]["assignee"].clone()) },
+                reporter: if json["fields"]["reporter"].is_null() { None } else { Some(json["fields"]["reporter"].clone()) },
                 labels: json["fields"]["labels"].as_array().map(|arr| {
                     arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
                 }),
-                components: json["fields"]["components"].clone(),
-                parent: json["fields"]["parent"].clone(),
+                components: if json["fields"]["components"].is_null() { None } else { json["fields"]["components"].as_array().map(|v| v.clone()) },
+                parent: if json["fields"]["parent"].is_null() { None } else { Some(json["fields"]["parent"].clone()) },
             }
         };
 
@@ -662,13 +662,14 @@ impl EnhancedJiraExtractor {
         
         // Use your existing link detector
         let link_detector = crate::link_detector::LinkDetector::new();
-        let extracted_links = link_detector.extract_links_from_content(text);
+        let issue_data = serde_json::json!({"description": text});
+        let extracted_links = link_detector.extract_links_from_issue(&issue_data, "comment");
         
         for extracted_link in extracted_links {
             let context = self.extract_context_around_url(text, &extracted_link.url);
             
             link_shares.push(LinkShare {
-                url: extracted_link.url,
+                url: extracted_link.url.clone(),
                 shared_by: author.clone(),
                 shared_in: location.clone(),
                 context,

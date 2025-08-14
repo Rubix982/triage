@@ -248,7 +248,8 @@ impl SlackApiClient {
         }
 
         // Get user information
-        let participants = self.get_users_info(&user_ids.into_iter().collect()).await?;
+        let user_ids_vec: Vec<String> = user_ids.into_iter().collect();
+        let participants = self.get_users_info(&user_ids_vec).await?;
 
         Ok(SlackConversationContent {
             channel_id: channel_id.to_string(),
@@ -262,7 +263,7 @@ impl SlackApiClient {
         })
     }
 
-    async fn get_channel_info(&self, channel_id: &str) -> Result<SlackChannelInfo, Box<dyn std::error::Error>> {
+    pub async fn get_channel_info(&self, channel_id: &str) -> Result<SlackChannelInfo, Box<dyn std::error::Error>> {
         let bot_token = self.auth_manager.get_bot_token().ok_or("No bot token available")?;
         
         let url = "https://slack.com/api/conversations.info";
@@ -318,7 +319,8 @@ impl SlackApiClient {
         let url = "https://slack.com/api/conversations.history";
         let mut params = HashMap::new();
         params.insert("channel", channel_id);
-        params.insert("limit", &limit.unwrap_or(100).to_string());
+        let limit_str = limit.unwrap_or(100).to_string();
+        params.insert("limit", &limit_str);
 
         if let Some(cursor) = cursor {
             params.insert("cursor", cursor);
@@ -349,7 +351,7 @@ impl SlackApiClient {
         Ok(messages)
     }
 
-    async fn get_thread_messages(&self, channel_id: &str, thread_ts: &str) -> Result<Vec<SlackMessage>, Box<dyn std::error::Error>> {
+    pub async fn get_thread_messages(&self, channel_id: &str, thread_ts: &str) -> Result<Vec<SlackMessage>, Box<dyn std::error::Error>> {
         let bot_token = self.auth_manager.get_bot_token().ok_or("No bot token available")?;
         
         let url = "https://slack.com/api/conversations.replies";
