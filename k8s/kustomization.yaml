@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace
+namespace: triage
+
+# Resources to deploy
+resources:
+- namespace.yaml
+- persistent-volumes.yaml
+- postgres.yaml
+- opensearch.yaml
+- neo4j.yaml
+- backend.yaml
+- frontend.yaml
+
+# Generate unique names for resources
+namePrefix: triage-
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/name: triage
+  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/component: people-intelligence-platform
+
+# Resource patches (customize for your environment)
+patchesStrategicMerge:
+- |-
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: triage-secrets
+    namespace: triage
+  stringData:
+    # Override these with your actual values
+    POSTGRES_PASSWORD: "your_secure_postgres_password"
+    NEO4J_AUTH: "neo4j/your_secure_neo4j_password"
+    OPENSEARCH_INITIAL_ADMIN_PASSWORD: "your_secure_opensearch_password"
+    GOOGLE_CLIENT_ID: "your_google_oauth_client_id"
+    GOOGLE_CLIENT_SECRET: "your_google_oauth_client_secret"
+    SLACK_CLIENT_ID: "your_slack_oauth_client_id"
+    SLACK_CLIENT_SECRET: "your_slack_oauth_client_secret"

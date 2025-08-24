@@ -130,7 +130,7 @@ impl PeopleIntegrationSystem {
 
     // Build comprehensive cross-platform insights
     pub async fn build_cross_platform_insights(
-        &self,
+        &mut self,
         jira_issues: &[String],
         google_docs: &[String],
         slack_threads: &[(String, String)],
@@ -141,8 +141,8 @@ impl PeopleIntegrationSystem {
         let mut all_people: HashMap<String, Person> = HashMap::new();
         let mut all_interactions: Vec<DetailedInteraction> = Vec::new();
         let mut collaboration_networks: Vec<CollaborationNetwork> = Vec::new();
-        let mut knowledge_transfer_events: Vec<KnowledgeTransferEvent> = Vec::new();
-        let mut expertise_mapping: HashMap<String, Vec<ExpertiseArea>> = HashMap::new();
+        let knowledge_transfer_events: Vec<KnowledgeTransferEvent> = Vec::new();
+        let expertise_mapping: HashMap<String, Vec<ExpertiseArea>> = HashMap::new();
 
         // Process Jira issues
         for issue_key in jira_issues {
@@ -161,7 +161,8 @@ impl PeopleIntegrationSystem {
                                     display_names: vec![person_id.clone()], // Would resolve actual names from identity resolver
                                     platform_identities: HashMap::new(),
                                     expertise_areas: Vec::new(),
-                                    activity_metrics: crate::people_graph::ActivityMetrics::default(),
+                                    activity_metrics: crate::people_graph::ActivityMetrics::default(
+                                    ),
                                     collaboration_network: Vec::new(),
                                     first_seen: participant.first_interaction,
                                     last_active: participant.last_interaction,
@@ -185,7 +186,8 @@ impl PeopleIntegrationSystem {
                                     display_names: vec![mentioner_id.clone()],
                                     platform_identities: HashMap::new(),
                                     expertise_areas: Vec::new(),
-                                    activity_metrics: crate::people_graph::ActivityMetrics::default(),
+                                    activity_metrics: crate::people_graph::ActivityMetrics::default(
+                                    ),
                                     collaboration_network: Vec::new(),
                                     first_seen: chrono::Utc::now(),
                                     last_active: chrono::Utc::now(),
@@ -203,7 +205,8 @@ impl PeopleIntegrationSystem {
                                     display_names: vec![mentioned_id.clone()],
                                     platform_identities: HashMap::new(),
                                     expertise_areas: Vec::new(),
-                                    activity_metrics: crate::people_graph::ActivityMetrics::default(),
+                                    activity_metrics: crate::people_graph::ActivityMetrics::default(
+                                    ),
                                     collaboration_network: Vec::new(),
                                     first_seen: chrono::Utc::now(),
                                     last_active: chrono::Utc::now(),
@@ -217,13 +220,21 @@ impl PeopleIntegrationSystem {
                                 "jira_mention_{}_{}",
                                 issue_key, mention.mentioned_user.account_id
                             ),
-                            interaction_type: InteractionType::Mentioned,
+                            interaction_type: InteractionType::Mentioned {
+                                mentioned_person_ids: vec![mentioned_id.clone()],
+                            },
                             source_person_id: mentioner_id,
                             target_person_id: Some(mentioned_id),
                             content_id: issue_key.clone(),
                             platform: "jira".to_string(),
                             timestamp: mention.timestamp,
-                            context: InteractionContext::Issue,
+                            context: InteractionContext {
+                                thread_id: None,
+                                urgency_indicators: Vec::new(),
+                                topic_keywords: Vec::new(),
+                                audience_size: None,
+                                visibility_level: "".to_string(),
+                            },
                             impact_indicators: ImpactIndicators {
                                 reply_count: 0,
                                 reaction_count: 0,
@@ -252,7 +263,8 @@ impl PeopleIntegrationSystem {
                                     display_names: vec![watcher_id.clone()],
                                     platform_identities: HashMap::new(),
                                     expertise_areas: Vec::new(),
-                                    activity_metrics: crate::people_graph::ActivityMetrics::default(),
+                                    activity_metrics: crate::people_graph::ActivityMetrics::default(
+                                    ),
                                     collaboration_network: Vec::new(),
                                     first_seen: chrono::Utc::now(),
                                     last_active: chrono::Utc::now(),
@@ -261,10 +273,12 @@ impl PeopleIntegrationSystem {
                         }
                     }
                 }
-                Err(e) => log_error(&format!(
-                    "Failed to process Jira issue {}: {}",
-                    issue_key, e
-                )),
+                Err(e) => {
+                    log_error(&format!(
+                        "Failed to process Jira issue {}: {}",
+                        issue_key, e
+                    ));
+                }
             }
         }
 
@@ -278,18 +292,19 @@ impl PeopleIntegrationSystem {
             {
                 Ok(collaboration) => {
                     // Extract people from document collaboration
-                    for participant in &collaboration.participants {
-                        let person_id = participant.user_id.clone();
+                    for participant in &collaboration.participant_summary {
+                        let person_id = participant.person_id.clone();
                         if !all_people.contains_key(&person_id) {
                             all_people.insert(
                                 person_id.clone(),
                                 Person {
                                     id: person_id.clone(),
-                                    email: participant.email.clone().unwrap_or_else(|| format!("{}@example.com", person_id)),
-                                    display_names: vec![participant.display_name.clone()],
+                                    email: format!("{}@example.com", person_id), // GoogleParticipant doesn't have email field
+                                    display_names: vec![person_id.clone()], // GoogleParticipant doesn't have display_name field
                                     platform_identities: HashMap::new(),
                                     expertise_areas: Vec::new(),
-                                    activity_metrics: crate::people_graph::ActivityMetrics::default(),
+                                    activity_metrics: crate::people_graph::ActivityMetrics::default(
+                                    ),
                                     collaboration_network: Vec::new(),
                                     first_seen: chrono::Utc::now(),
                                     last_active: chrono::Utc::now(),
@@ -298,7 +313,9 @@ impl PeopleIntegrationSystem {
                         }
                     }
                 }
-                Err(e) => log_error(&format!("Failed to process Google doc {}: {}", doc_id, e)),
+                Err(e) => {
+                    log_error(&format!("Failed to process Google doc {}: {}", doc_id, e));
+                }
             }
         }
 
@@ -326,7 +343,8 @@ impl PeopleIntegrationSystem {
                                     display_names: vec![participant.display_name.clone()],
                                     platform_identities: HashMap::new(),
                                     expertise_areas: Vec::new(),
-                                    activity_metrics: crate::people_graph::ActivityMetrics::default(),
+                                    activity_metrics: crate::people_graph::ActivityMetrics::default(
+                                    ),
                                     collaboration_network: Vec::new(),
                                     first_seen: chrono::Utc::now(),
                                     last_active: chrono::Utc::now(),
@@ -345,13 +363,19 @@ impl PeopleIntegrationSystem {
                             .collect(),
                         platforms_involved: vec!["slack".to_string()],
                         collaboration_strength: dynamics.participants.len() as f64 / 10.0, // Simple heuristic based on participant count
-                        primary_topics: dynamics.topic_evolution.iter().map(|t| t.new_topic.clone()).collect(),
+                        primary_topics: dynamics
+                            .topic_evolution
+                            .iter()
+                            .map(|t| t.new_topic.clone())
+                            .collect(),
                     });
                 }
-                Err(e) => log_error(&format!(
-                    "Failed to process Slack thread {}/{}: {}",
-                    channel_id, thread_ts, e
-                )),
+                Err(e) => {
+                    log_error(&format!(
+                        "Failed to process Slack thread {}/{}: {}",
+                        channel_id, thread_ts, e
+                    ));
+                }
             }
         }
 

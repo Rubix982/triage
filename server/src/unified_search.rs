@@ -1,8 +1,6 @@
 use crate::content_storage::{SEARCH_CONTENT_FULL_TEXT, GET_RELATED_CONTENT};
 use crate::db_utils::with_connection;
 use crate::semantic_search::RelatedItem;
-use crate::knowledge_engine::{KnowledgeConcept, TechnologyKnowledge};
-use crate::user_notes::{UserNote, SavedView};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

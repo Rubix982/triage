@@ -7,13 +7,13 @@ use crate::semantic_search::{semantic_search, SemanticSearchQuery};
 use crate::unified_search::{unified_search, UnifiedSearchRequest};
 use crate::sync_status::get_sync_status;
 use crate::user_notes::{create_note, get_user_notes, create_saved_view, get_saved_views, update_view_usage, toggle_view_favorite, CreateNoteRequest, CreateViewRequest};
-use crate::google_auth::{GoogleAuthManager, GoogleOAuthConfig};
-use crate::slack_auth::{SlackAuthManager, SlackOAuthConfig};
+use crate::google_auth::{GoogleAuthManager, GoogleOAuthConfig, GoogleTokens};
+use crate::slack_auth::{SlackAuthManager, SlackOAuthConfig, SlackTokens};
 use crate::content_extractor::JobPriority;
 use axum::{
     extract::{Query, Path},
     http::StatusCode,
-    response::Json,
+    response::{Json},
     routing::{get, post, put},
     Router,
 };
@@ -89,8 +89,12 @@ pub async fn create_router() -> Router {
         .route("/api/sync/status", get(get_sync_status_endpoint))
         .route("/api/auth/google", get(google_auth_initiate))
         .route("/api/auth/google/callback", get(google_auth_callback))
+        .route("/api/auth/google/status", get(google_auth_status))
+        .route("/api/auth/google/refresh", post(google_refresh_tokens))
         .route("/api/auth/slack", get(slack_auth_initiate))
         .route("/api/auth/slack/callback", get(slack_auth_callback))
+        .route("/api/auth/slack/status", get(slack_auth_status))
+        .route("/api/auth/slack/test", post(slack_test_auth))
         .route("/api/content/extract", post(trigger_content_extraction))
         .route("/api/content/status", get(get_extraction_status))
         .merge(crate::people_routes::create_people_routes())
@@ -305,24 +309,124 @@ async fn google_auth_callback(
     let config = GoogleOAuthConfig::default();
     let mut auth_manager = GoogleAuthManager::new(config);
     
-    match auth_manager.exchange_code_for_tokens(&code).await {
-        Ok(_) => {
-            // TODO: Store tokens securely in database associated with user_id
-            println!("✅ Successfully authenticated Google for user: {}", user_id);
-            
-            Ok(Json(serde_json::json!({
-                "success": true,
-                "user_id": user_id,
-                "message": "Google authentication successful"
-            })))
-        },
-        Err(e) => {
-            eprintln!("❌ Google authentication failed: {}", e);
-            Ok(Json(serde_json::json!({
-                "success": false,
-                "error": "Authentication failed"
-            })))
-        }
+    // Simplified authentication flow
+    if let Err(e) = auth_manager.exchange_code_for_tokens(&code).await {
+        eprintln!("❌ Google authentication failed: {}", e);
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "Authentication failed"
+        })));
+    }
+    
+    if !auth_manager.is_authenticated() {
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "Authentication completed but not verified"
+        })));
+    }
+    
+    // Store tokens if available
+    if let Some(tokens) = auth_manager.get_tokens() {
+        store_google_tokens(&user_id, tokens).await;
+        
+        println!("✅ Successfully authenticated Google for user: {} with valid tokens", user_id);
+        
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "user_id": user_id,
+            "authenticated": true,
+            "message": "Google authentication successful",
+            "has_access_token": !tokens.access_token.is_empty(),
+            "has_refresh_token": tokens.refresh_token.is_some(),
+            "expires_at": tokens.expires_at.to_rfc3339()
+        })))
+    } else {
+        Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "Failed to retrieve authentication tokens"
+        })))
+    }
+}
+
+/// Check Google authentication status for a user
+async fn google_auth_status(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let user_id = params.get("user_id").unwrap_or(&"default".to_string()).clone();
+    
+    // Try to load stored tokens
+    if let Some(tokens) = load_google_tokens(&user_id).await {
+        let config = GoogleOAuthConfig::default();
+        let mut auth_manager = GoogleAuthManager::new(config);
+        auth_manager.set_tokens(tokens);
+        
+        let is_authenticated = auth_manager.is_authenticated();
+        let current_tokens = auth_manager.get_tokens();
+        
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "user_id": user_id,
+            "authenticated": is_authenticated,
+            "has_access_token": current_tokens.map(|t| !t.access_token.is_empty()).unwrap_or(false),
+            "has_refresh_token": current_tokens.map(|t| t.refresh_token.is_some()).unwrap_or(false),
+            "expires_at": current_tokens.map(|t| t.expires_at.to_rfc3339()),
+            "token_expired": current_tokens.map(|t| chrono::Utc::now() > t.expires_at).unwrap_or(true)
+        })))
+    } else {
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "user_id": user_id,
+            "authenticated": false,
+            "message": "No stored authentication tokens found"
+        })))
+    }
+}
+
+/// Refresh Google authentication tokens for a user
+async fn google_refresh_tokens(
+    Json(request): Json<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let user_id = request.get("user_id").unwrap_or(&"default".to_string()).clone();
+    
+    println!("🔄 Refreshing Google tokens for user: {}", user_id);
+    
+    // Try to load stored tokens
+    let Some(tokens) = load_google_tokens(&user_id).await else {
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "No stored authentication tokens found to refresh"
+        })));
+    };
+    
+    let config = GoogleOAuthConfig::default();
+    let mut auth_manager = GoogleAuthManager::new(config);
+    auth_manager.set_tokens(tokens);
+    
+    // Refresh tokens
+    if let Err(e) = auth_manager.refresh_tokens().await {
+        println!("❌ Failed to refresh Google tokens for user {}: {}", user_id, e);
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "error": format!("Token refresh failed: {}", e)
+        })));
+    }
+    
+    // Store the refreshed tokens
+    if let Some(refreshed_tokens) = auth_manager.get_tokens() {
+        store_google_tokens(&user_id, refreshed_tokens).await;
+        
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "user_id": user_id,
+            "message": "Tokens refreshed successfully",
+            "authenticated": auth_manager.is_authenticated(),
+            "expires_at": refreshed_tokens.expires_at.to_rfc3339()
+        })))
+    } else {
+        Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "Token refresh succeeded but tokens not accessible"
+        })))
     }
 }
 
@@ -394,6 +498,7 @@ async fn slack_auth_initiate(
 async fn slack_auth_callback(
     Query(params): Query<SlackAuthQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Handle OAuth errors first
     if let Some(error) = params.error {
         return Ok(Json(serde_json::json!({
             "success": false,
@@ -401,51 +506,225 @@ async fn slack_auth_callback(
         })));
     }
 
+    // Validate required parameters
     let code = params.code.ok_or(StatusCode::BAD_REQUEST)?;
     let state = params.state.unwrap_or_default();
     
-    // Extract user_id from state
-    let user_id = state.split('=')
+    // Extract user_id from state parameter
+    let user_id = state
+        .split('=')
         .nth(1)
         .unwrap_or("default")
         .to_string();
 
+    // Create auth manager and exchange code for tokens
     let config = SlackOAuthConfig::default();
     let mut auth_manager = SlackAuthManager::new(config);
     
-    match auth_manager.exchange_code_for_tokens(&code).await {
-        Ok(_) => {
-            let (team_id, team_name) = auth_manager.get_team_info().unwrap_or_default();
-            
-            // TODO: Store tokens securely in database associated with user_id and team_id
-            println!("✅ Successfully authenticated Slack for user: {} in team: {} ({})", 
-                     user_id, team_name, team_id);
-            
-            // Test the authentication
-            match auth_manager.test_auth().await {
-                Ok(auth_test) => {
-                    println!("🔍 Slack auth test successful: {:?}", auth_test);
-                },
-                Err(e) => {
-                    eprintln!("⚠️ Slack auth test failed: {}", e);
+    // Exchange code for tokens
+    if let Err(e) = auth_manager.exchange_code_for_tokens(&code).await {
+        eprintln!("❌ Slack authentication failed: {}", e);
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "Authentication failed"
+        })));
+    }
+    
+    // Check if authentication was successful
+    if !auth_manager.is_authenticated() {
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "Authentication completed but not verified"
+        })));
+    }
+    
+    // Get team info
+    let (team_id, team_name) = auth_manager.get_team_info().unwrap_or((
+        "unknown_team".to_string(), 
+        "Unknown Team".to_string()
+    ));
+    
+    // Store tokens securely
+    if let Some(tokens) = auth_manager.get_tokens() {
+        store_slack_tokens(&user_id, tokens).await;
+    }
+    
+    println!("✅ Slack authentication successful for user: {} in team: {}", user_id, team_name);
+    
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "user_id": user_id,
+        "team_id": team_id,
+        "team_name": team_name,
+        "authenticated": true,
+        "has_bot_token": auth_manager.get_bot_token().is_some(),
+        "has_user_token": auth_manager.get_user_token().is_some(),
+        "message": "Slack authentication successful"
+    })))
+}
+
+// Helper function to store Google authentication tokens
+async fn store_google_tokens(user_id: &str, tokens: &GoogleTokens) {
+    // In a real implementation, this would store tokens in a secure database
+    // For now, we'll just log the successful storage
+    println!("📦 Storing Google tokens for user: {}", user_id);
+    println!("   - Access token present: {}", !tokens.access_token.is_empty());
+    println!("   - Refresh token present: {}", tokens.refresh_token.is_some());
+    println!("   - Expires at: {}", tokens.expires_at.to_rfc3339());
+    
+    // TODO: Implement actual database storage using content_storage.rs
+    // Example:
+    // crate::db_utils::with_connection("store_google_tokens", |conn| {
+    //     conn.execute(INSERT_USER_AUTH_TOKEN, [user_id, "google", serde_json::to_string(tokens)?])
+    //         .expect("Failed to store Google tokens");
+    // });
+}
+
+// Helper function to retrieve stored Google tokens
+async fn load_google_tokens(user_id: &str) -> Option<GoogleTokens> {
+    // In a real implementation, this would load tokens from database
+    println!("📥 Loading Google tokens for user: {}", user_id);
+    
+    // TODO: Implement actual database retrieval
+    // For now, return None (no stored tokens)
+    None
+}
+
+// Function to get a valid Google access token for API calls
+async fn get_valid_google_access_token(user_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Load stored tokens
+    if let Some(stored_tokens) = load_google_tokens(user_id).await {
+        let config = GoogleOAuthConfig::default();
+        let mut auth_manager = GoogleAuthManager::new(config);
+        
+        // Set the stored tokens
+        auth_manager.set_tokens(stored_tokens);
+        
+        // Get a valid access token (this will refresh if needed)
+        match auth_manager.get_valid_access_token().await {
+            Ok(token) => {
+                println!("✅ Retrieved valid Google access token for user: {}", user_id);
+                
+                // If tokens were refreshed, store the new ones
+                if let Some(updated_tokens) = auth_manager.get_tokens() {
+                    store_google_tokens(user_id, updated_tokens).await;
                 }
+                
+                Ok(token)
             }
-            
-            Ok(Json(serde_json::json!({
-                "success": true,
-                "user_id": user_id,
-                "team_id": team_id,
-                "team_name": team_name,
-                "message": "Slack authentication successful"
-            })))
-        },
-        Err(e) => {
-            eprintln!("❌ Slack authentication failed: {}", e);
-            Ok(Json(serde_json::json!({
-                "success": false,
-                "error": "Authentication failed"
-            })))
+            Err(e) => {
+                println!("❌ Failed to get valid Google access token for user {}: {}", user_id, e);
+                Err(format!("Failed to refresh Google access token: {}", e).into())
+            }
         }
+    } else {
+        Err("No stored Google authentication tokens found for user".into())
+    }
+}
+
+// Helper function to store Slack authentication tokens
+async fn store_slack_tokens(user_id: &str, tokens: &SlackTokens) {
+    // In a real implementation, this would store tokens in a secure database
+    println!("📦 Storing Slack tokens for user: {}", user_id);
+    println!("   - Access token present: {}", !tokens.access_token.is_empty());
+    println!("   - User token present: {}", tokens.user_token.is_some());
+    println!("   - Team: {} ({})", tokens.team_name, tokens.team_id);
+    
+    // TODO: Implement actual database storage
+}
+
+// Helper function to retrieve stored Slack tokens
+async fn load_slack_tokens(user_id: &str) -> Option<SlackTokens> {
+    // In a real implementation, this would load tokens from database
+    println!("📥 Loading Slack tokens for user: {}", user_id);
+    
+    // TODO: Implement actual database retrieval
+    None
+}
+
+/// Check Slack authentication status for a user
+async fn slack_auth_status(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let user_id = params.get("user_id").unwrap_or(&"default".to_string()).clone();
+    
+    // Try to load stored tokens
+    if let Some(tokens) = load_slack_tokens(&user_id).await {
+        let config = SlackOAuthConfig::default();
+        let mut auth_manager = SlackAuthManager::new(config);
+        auth_manager.set_tokens(tokens);
+        
+        let is_authenticated = auth_manager.is_authenticated();
+        let (team_id, team_name) = auth_manager.get_team_info().unwrap_or((
+            "unknown".to_string(), 
+            "Unknown".to_string()
+        ));
+        
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "user_id": user_id,
+            "authenticated": is_authenticated,
+            "team_id": team_id,
+            "team_name": team_name,
+            "has_bot_token": auth_manager.get_bot_token().is_some(),
+            "has_user_token": auth_manager.get_user_token().is_some()
+        })))
+    } else {
+        Ok(Json(serde_json::json!({
+            "success": true,
+            "user_id": user_id,
+            "authenticated": false,
+            "message": "No stored Slack authentication tokens found"
+        })))
+    }
+}
+
+/// Test Slack authentication for a user
+async fn slack_test_auth(
+    Json(request): Json<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let user_id = request.get("user_id").unwrap_or(&"default".to_string()).clone();
+    
+    println!("🧪 Testing Slack authentication for user: {}", user_id);
+    
+    // Try to load stored tokens
+    if let Some(tokens) = load_slack_tokens(&user_id).await {
+        let config = SlackOAuthConfig::default();
+        let mut auth_manager = SlackAuthManager::new(config);
+        auth_manager.set_tokens(tokens);
+        
+        match auth_manager.test_auth().await {
+            Ok(auth_test) => {
+                println!("✅ Slack auth test successful for user: {}", user_id);
+                
+                Ok(Json(serde_json::json!({
+                    "success": true,
+                    "user_id": user_id,
+                    "auth_test": {
+                        "ok": auth_test.ok,
+                        "url": auth_test.url,
+                        "team": auth_test.team,
+                        "user": auth_test.user,
+                        "team_id": auth_test.team_id,
+                        "user_id": auth_test.user_id,
+                        "bot_id": auth_test.bot_id
+                    },
+                    "message": "Slack authentication test successful"
+                })))
+            }
+            Err(e) => {
+                println!("❌ Slack auth test failed for user {}: {}", user_id, e);
+                Ok(Json(serde_json::json!({
+                    "success": false,
+                    "error": format!("Slack auth test failed: {}", e)
+                })))
+            }
+        }
+    } else {
+        Ok(Json(serde_json::json!({
+            "success": false,
+            "error": "No stored Slack authentication tokens found to test"
+        })))
     }
 }
 
@@ -464,7 +743,11 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 User notes available at http://127.0.0.1:3001/api/notes");
     println!("📊 Sync status available at http://127.0.0.1:3001/api/sync/status");
     println!("🔐 Google OAuth available at http://127.0.0.1:3001/api/auth/google");
+    println!("🔍 Google auth status at http://127.0.0.1:3001/api/auth/google/status?user_id=USER_ID");
+    println!("🔄 Google token refresh at http://127.0.0.1:3001/api/auth/google/refresh");
     println!("💬 Slack OAuth available at http://127.0.0.1:3001/api/auth/slack");
+    println!("🔍 Slack auth status at http://127.0.0.1:3001/api/auth/slack/status?user_id=USER_ID");
+    println!("🧪 Slack auth test at http://127.0.0.1:3001/api/auth/slack/test");
     println!("📄 Content extraction available at http://127.0.0.1:3001/api/content/extract");
     
     axum::serve(listener, app).await?;

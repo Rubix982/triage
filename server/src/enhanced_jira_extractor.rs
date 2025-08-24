@@ -307,7 +307,7 @@ impl EnhancedJiraExtractor {
                         id: it.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
                         description: it.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
                         subtask: it.get("subtask").and_then(|v| v.as_bool()),
-                        hierarchyLevel: it.get("hierarchyLevel").and_then(|v| v.as_i64()).map(|i| i as i32),
+                        hierarchy_level: it.get("hierarchyLevel").and_then(|v| v.as_i64()).map(|i| i as i32),
                     }
                 }),
                 priority: json["fields"]["priority"].as_object().map(|p| {

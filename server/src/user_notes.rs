@@ -291,7 +291,7 @@ pub async fn get_user_notes(user_id: Option<String>, search: Option<String>) -> 
     let mut note_type_counts = HashMap::new();
 
     with_connection("get_notes", |conn| {
-        let query = if let Some(search_term) = &search {
+        let query: &str = if let Some(_search_term) = &search {
             r#"
             SELECT id, title, content, note_type, tags, linked_items, created_at, updated_at, user_id, is_private, metadata
             FROM user_notes 
@@ -311,28 +311,26 @@ pub async fn get_user_notes(user_id: Option<String>, search: Option<String>) -> 
 
         let rows = if let Some(search_term) = &search {
             let search_pattern = format!("%{}%", search_term);
-            stmt.query_map([&user_id, &search_pattern], |row| {
-                Ok(build_note_from_row(row)?)
-            })
+            stmt.query_map([&user_id, &search_pattern], |row| build_note_from_row(row))
             .expect("Failed to execute search query")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Failed to collect search notes")
         } else {
-            stmt.query_map([&user_id], |row| {
-                Ok(build_note_from_row(row)?)
-            })
+            stmt.query_map([&user_id], |row| build_note_from_row(row))
             .expect("Failed to execute notes query")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Failed to collect notes")
         };
 
-        for row in rows {
-            if let Ok(note) = row {
-                // Collect tags
-                all_tags.extend(note.tags.clone());
+        for note in rows {
+            // Collect tags
+            all_tags.extend(note.tags.clone());
 
-                // Count note types
-                let note_type_str = format!("{:?}", note.note_type);
-                *note_type_counts.entry(note_type_str).or_insert(0) += 1;
+            // Count note types
+            let note_type_str = format!("{:?}", note.note_type);
+            *note_type_counts.entry(note_type_str).or_insert(0) += 1;
 
-                notes.push(note);
-            }
+            notes.push(note);
         }
     });
 
@@ -482,8 +480,11 @@ pub async fn toggle_view_favorite(view_id: &str) -> Result<bool, String> {
 
     with_connection("toggle_favorite", |conn| {
         // First get current state
-        let mut stmt = conn.prepare("SELECT is_favorite FROM saved_views WHERE id = ?1").expect("Failed to prepare query");
-        let current_state = stmt.query_row([view_id], |row| Ok(row.get::<_, i32>(0)? != 0))
+        let mut stmt = conn
+            .prepare("SELECT is_favorite FROM saved_views WHERE id = ?1")
+            .expect("Failed to prepare query");
+        let current_state = stmt
+            .query_row([view_id], |row| Ok(row.get::<_, i32>(0)? != 0))
             .unwrap_or(false);
 
         is_favorite = !current_state;

@@ -1,0 +1,158 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triage-frontend
+  namespace: triage
+  labels:
+    app: triage-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: triage-frontend
+  template:
+    metadata:
+      labels:
+        app: triage-frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+      - name: frontend
+        image: triage-frontend:latest  # You'll need to build and push this
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        # Backend API URL (internal cluster communication)
+        - name: REACT_APP_API_URL
+          value: "http://triage-backend-service:3001/api"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        # Security context for nginx
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triage-frontend-service
+  namespace: triage
+  labels:
+    app: triage-frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: triage-frontend
+---
+# Ingress for external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: triage-ingress
+  namespace: triage
+  labels:
+    app: triage
+  annotations:
+    # Nginx ingress controller annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # Enable CORS for API calls
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+spec:
+  ingressClassName: nginx  # Adjust based on your ingress controller
+  rules:
+  - host: triage.local  # Change to your domain
+    http:
+      paths:
+      # Frontend routes
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: triage-frontend-service
+            port:
+              number: 3000
+      # API routes
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: triage-backend-service
+            port:
+              number: 3001
+      # Neo4j browser (optional, for development)
+      - path: /neo4j
+        pathType: Prefix
+        backend:
+          service:
+            name: neo4j-service
+            port:
+              number: 7474
+      # OpenSearch Dashboards (optional, for development)
+      - path: /opensearch
+        pathType: Prefix
+        backend:
+          service:
+            name: opensearch-dashboards-service
+            port:
+              number: 5601
+---
+# Alternative: LoadBalancer service (for cloud providers)
+apiVersion: v1
+kind: Service
+metadata:
+  name: triage-loadbalancer
+  namespace: triage
+  labels:
+    app: triage
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: frontend
+  - port: 3001
+    targetPort: 3001
+    protocol: TCP
+    name: backend
+  selector:
+    app: triage-frontend

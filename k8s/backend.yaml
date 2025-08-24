@@ -1,0 +1,243 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triage-backend
+  namespace: triage
+  labels:
+    app: triage-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: triage-backend
+  template:
+    metadata:
+      labels:
+        app: triage-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: backend
+        image: triage-backend:latest  # You'll need to build and push this
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        # Database configuration
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: POSTGRES_PASSWORD
+        # OpenSearch configuration
+        - name: OPENSEARCH_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: OPENSEARCH_HOST
+        - name: OPENSEARCH_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: OPENSEARCH_PORT
+        # Neo4j configuration
+        - name: NEO4J_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: NEO4J_HOST
+        - name: NEO4J_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: NEO4J_PORT
+        - name: NEO4J_AUTH
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: NEO4J_AUTH
+        # OAuth configuration
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: GOOGLE_CLIENT_ID
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: GOOGLE_CLIENT_SECRET
+        - name: GOOGLE_REDIRECT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: GOOGLE_REDIRECT_URI
+        - name: SLACK_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: SLACK_CLIENT_ID
+        - name: SLACK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: SLACK_CLIENT_SECRET
+        - name: SLACK_REDIRECT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: SLACK_REDIRECT_URI
+        # Application configuration
+        - name: RUST_LOG
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: RUST_LOG
+        - name: SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: SERVER_PORT
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        # Startup probe for database connections
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+      # Wait for databases to be ready
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16-alpine
+        command: 
+        - sh
+        - -c
+        - |
+          until pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: triage-secrets
+              key: POSTGRES_USER
+      - name: wait-for-opensearch
+        image: curlimages/curl:8.5.0
+        command:
+        - sh
+        - -c
+        - |
+          until curl -f http://$OPENSEARCH_HOST:$OPENSEARCH_PORT/_cluster/health; do
+            echo "Waiting for OpenSearch..."
+            sleep 5
+          done
+        env:
+        - name: OPENSEARCH_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: OPENSEARCH_HOST
+        - name: OPENSEARCH_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: OPENSEARCH_PORT
+      - name: wait-for-neo4j
+        image: curlimages/curl:8.5.0
+        command:
+        - sh
+        - -c
+        - |
+          until curl -f http://$NEO4J_HOST:$NEO4J_HTTP_PORT/; do
+            echo "Waiting for Neo4j..."
+            sleep 5
+          done
+        env:
+        - name: NEO4J_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: NEO4J_HOST
+        - name: NEO4J_HTTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: triage-config
+              key: NEO4J_HTTP_PORT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triage-backend-service
+  namespace: triage
+  labels:
+    app: triage-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3001
+    targetPort: 3001
+    protocol: TCP
+    name: http
+  selector:
+    app: triage-backend

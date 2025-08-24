@@ -1,5 +1,4 @@
 use crate::db_utils::with_connection;
-use crate::types::Issue;
 use crate::utils::{log_step, log_success};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};

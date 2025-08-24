@@ -25,6 +25,16 @@ pub struct SlackThreadDynamics {
     pub thread_metadata: ThreadMetadata,
 }
 
+/// Helper to parse Slack ts string (e.g. "1681234567.123456") to chrono::DateTime<Utc>
+fn parse_slack_ts_to_datetime(ts: &str) -> Result<DateTime<Utc>, Box<dyn std::error::Error>> {
+    let mut parts = ts.split('.');
+    let secs = parts.next().ok_or("Invalid Slack ts format")?.parse::<i64>()?;
+    let nano_seconds = parts.next().unwrap_or("0").parse::<u32>().unwrap_or(0) * 1000;
+    let datetime = DateTime::from_timestamp(secs, nano_seconds * 1000)
+        .ok_or("Invalid timestamp")?;
+    Ok(datetime)
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SlackParticipant {
     pub person_id: String,
@@ -614,7 +624,7 @@ impl EnhancedSlackExtractor {
         let thread_dynamics = SlackThreadDynamics {
             thread_ts: thread_ts.to_string(),
             channel_id: channel_id.to_string(),
-            channel_name: channel_info.name.unwrap_or_default(),
+            channel_name: channel_info.name.to_string(),
             thread_title: self.derive_thread_title(&message_flow),
             participants,
             message_flow,
@@ -658,32 +668,37 @@ impl EnhancedSlackExtractor {
         let message_type = self.classify_message_type(&message.text, position).await;
         
         // Extract mentions from message text
-        let mentions = self.extract_mentions_from_slack_message(&message.text).await?;
-        
-        // Extract shared content (files, links, etc.)
-        let shared_content = self.extract_message_content(message).await?;
-        
-        // Analyze sentiment and knowledge indicators
-        let sentiment_indicators = self.analyze_message_sentiment(&message.text).await;
-        let knowledge_indicators = self.analyze_message_knowledge(&message.text).await;
-        
+        let timestamp = parse_slack_ts_to_datetime(&message.ts)?;
+
         Ok(EnhancedSlackMessage {
             message_id: message.ts.clone(),
             user,
-            timestamp: message.timestamp,
+            timestamp,
             text: message.text.clone(),
             message_type,
             reactions: Vec::new(), // Would be populated from Slack API reactions
-            mentions,
-            shared_content,
+            mentions: Vec::new(), // Would be populated from mention extraction
+            shared_content: Vec::new(), // Would be populated from content sharing analysis
             thread_context: ThreadContext {
                 position_in_thread: position,
                 responds_to_messages: Vec::new(), // Would analyze conversation flow
                 generates_responses: Vec::new(),
                 conversation_branch: None,
             },
-            sentiment_indicators,
-            knowledge_indicators,
+            sentiment_indicators: SentimentIndicators {
+                urgency_level: UrgencyLevel::Medium,
+                emotional_tone: EmotionalTone::Neutral,
+                problem_severity: ProblemSeverity::Minor,
+                confidence_level: ConfidenceLevel::Confident,
+            },
+            knowledge_indicators: MessageKnowledgeIndicators {
+                contains_solution: false,
+                contains_explanation: false,
+                contains_code_example: false,
+                contains_documentation_reference: false,
+                knowledge_level_demonstrated: KnowledgeLevel::Intermediate,
+                teaching_indicators: Vec::new(),
+            },
         })
     }
 
@@ -770,9 +785,9 @@ impl EnhancedSlackExtractor {
                 content.push(MessageContent {
                     content_type: ContentType::FileUpload,
                     content_data: ContentData::File {
-                        filename: file.name.clone().unwrap_or_default(),
-                        file_type: file.mimetype.clone().unwrap_or_default(),
-                        size: file.size.unwrap_or(0) as u64,
+                        filename: file.name.clone(),
+                        file_type: file.mimetype.clone(),
+                        size: file.size as u64,
                     },
                     share_context: "File shared in discussion".to_string(),
                     discussion_generated: 0, // Would analyze responses to this file

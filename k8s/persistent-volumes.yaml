@@ -1,0 +1,56 @@
+---
+# PostgreSQL Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: triage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard  # Adjust based on your cluster
+  resources:
+    requests:
+      storage: 10Gi
+---
+# OpenSearch Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opensearch-pvc
+  namespace: triage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard  # Adjust based on your cluster
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Neo4j Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-data-pvc
+  namespace: triage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard  # Adjust based on your cluster
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Neo4j Logs Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-logs-pvc
+  namespace: triage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard  # Adjust based on your cluster
+  resources:
+    requests:
+      storage: 1Gi
