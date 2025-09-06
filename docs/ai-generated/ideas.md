@@ -1,7 +1,6 @@
-# CLAUDE.md - People-Centric Knowledge Intelligence Platform
+# People-Centric Knowledge Intelligence Platform
 
-- [CLAUDE.md - People-Centric Knowledge Intelligence Platform](#claudemd---people-centric-knowledge-intelligence-platform)
-  - [Previous Claude Metrics](#previous-claude-metrics)
+- [People-Centric Knowledge Intelligence Platform](#people-centric-knowledge-intelligence-platform)
   - [Project Overview](#project-overview)
   - [Business Value \& Use Cases](#business-value--use-cases)
     - [Core Problem Solved](#core-problem-solved)
@@ -42,18 +41,6 @@
     - [🏗️ **Technical Excellence**](#️-technical-excellence)
     - [🚀 **Production Readiness**](#-production-readiness)
     - [💡 **Competitive Advantage**](#-competitive-advantage)
-
-## Previous Claude Metrics
-
-```sh
-⎿  Total cost:            $29.65
-    Total duration (API):  2h 2m 6.9s
-    Total duration (wall): 42h 27m 26.7s
-    Total code changes:    25169 lines added, 403 lines removed
-    Usage by model:
-        claude-3-5-haiku:  90.6k input, 2.4k output, 0 cache read, 0 cache write
-          claude-sonnet:  1.4k input, 427.1k output, 37.2m cache read, 3.2m cache write
-```
 
 ## Project Overview
 
