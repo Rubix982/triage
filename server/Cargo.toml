@@ -28,6 +28,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 url = "2.5"
 urlencoding = "2.1"
 oauth2 = "4.4"
+postgres = "0.19.10"
 
 [dev-dependencies]
 criterion = "0.5"

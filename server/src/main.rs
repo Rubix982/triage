@@ -12,34 +12,34 @@ mod advanced_analytics;
 mod analytics;
 mod auth;
 mod constants;
+mod content_extractor;
+mod content_storage;
 mod db;
+mod db_utils;
+mod google_auth;
+mod google_client;
 mod graph;
 mod jira;
 mod knowledge_engine;
 mod link_detector;
-mod google_auth;
-mod google_client;
-mod slack_auth;
-mod slack_client;
-mod content_extractor;
-mod content_storage;
-mod unified_search;
 mod queries;
 mod routes;
 mod semantic_search;
 mod server;
+mod slack_auth;
+mod slack_client;
 mod smart_graph;
 mod sync_status;
 mod types;
+mod unified_search;
 mod user_notes;
 mod utils;
-mod db_utils;
 
 // Enhanced people and relationship tracking
-mod people_graph;
-mod enhanced_jira_extractor;
 mod enhanced_google_extractor;
+mod enhanced_jira_extractor;
 mod enhanced_slack_extractor;
+mod people_graph;
 mod people_integration;
 mod people_routes;
 
@@ -72,7 +72,11 @@ enum Commands {
 
 #[tokio::main]
 async fn main() {
-    initialize_duck_db().await;
+    create_project_table().await;
+    create_issues_table().await;
+    user_notes::initialize_notes_tables().await;
+    content_storage::create_content_storage_tables().await;
+    people_graph::initialize_people_tables().await;
 
     let cli = Cli::parse();
 
@@ -137,12 +141,4 @@ async fn main() {
             );
         }
     }
-}
-
-async fn initialize_duck_db() {
-    create_project_table().await;
-    create_issues_table().await;
-    user_notes::initialize_notes_tables().await;
-    content_storage::create_content_storage_tables().await;
-    people_graph::initialize_people_tables().await;
 }

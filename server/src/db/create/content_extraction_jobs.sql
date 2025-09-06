@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS content_extraction_jobs (
+    id TEXT PRIMARY KEY,
+    source_ticket_id TEXT NOT NULL,
+    source_url TEXT NOT NULL,
+    platform_type TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    team_id TEXT,
+    priority TEXT NOT NULL,
+    status TEXT NOT NULL,
+    retry_count INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT,
+    error_message TEXT,
+    extracted_content_id TEXT,
+    FOREIGN KEY (extracted_content_id) REFERENCES extracted_content(id),
+    INDEX idx_status (status),
+    INDEX idx_user_id (user_id),
+    INDEX idx_source_ticket (source_ticket_id),
+    INDEX idx_created_at (created_at)
+);
